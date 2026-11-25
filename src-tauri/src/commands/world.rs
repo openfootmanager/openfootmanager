@@ -181,7 +181,7 @@ pub fn package_assets_dir(app_handle: &tauri::AppHandle) -> Result<std::path::Pa
     Ok(app_data_dir.join("package-assets"))
 }
 
-fn packages_dir(app_handle: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+pub(crate) fn packages_dir(app_handle: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
     let app_data_dir = app_handle
         .path()
         .app_data_dir()
@@ -189,7 +189,10 @@ fn packages_dir(app_handle: &tauri::AppHandle) -> Result<std::path::PathBuf, Str
     Ok(app_data_dir.join("packages"))
 }
 
-fn package_info_from_path(path: &std::path::Path) -> Option<ofm_core::generator::PackageInfo> {
+fn package_info_from_path(
+    path: &std::path::Path,
+    include_logo: bool,
+) -> Option<ofm_core::generator::PackageInfo> {
     let meta = ofm_core::generator::read_package_manifest_from_ofm(path)?;
     let id = if meta.id.is_empty() {
         path.file_stem()
@@ -200,14 +203,21 @@ fn package_info_from_path(path: &std::path::Path) -> Option<ofm_core::generator:
         meta.id.clone()
     };
 
-    let (package, errors) = ofm_core::generator::load_world_package_from_ofm(path);
+    let (package, errors) = if include_logo {
+        ofm_core::generator::load_world_package_from_ofm(path)
+    } else {
+        ofm_core::generator::package::load_world_package_definitions_from_ofm(path)
+    };
     if !errors.is_empty() {
         return None;
     }
-    let logo_data_url = meta
-        .logo
-        .as_deref()
-        .and_then(|logo| ofm_core::generator::read_logo_from_ofm(path, logo));
+    let logo_data_url = if include_logo {
+        meta.logo
+            .as_deref()
+            .and_then(|logo| ofm_core::generator::read_logo_from_ofm(path, logo))
+    } else {
+        None
+    };
     Some(ofm_core::generator::PackageInfo {
         id,
         name: meta.name,
@@ -331,23 +341,30 @@ pub fn list_installed_packages(
 ) -> Result<Vec<ofm_core::generator::PackageInfo>, String> {
     info!("[cmd] list_installed_packages");
     let packages_dir = packages_dir(&app_handle)?;
+    Ok(list_installed_packages_in(&packages_dir, true))
+}
+
+pub(crate) fn list_installed_packages_in(
+    packages_dir: &std::path::Path,
+    include_logo: bool,
+) -> Vec<ofm_core::generator::PackageInfo> {
     if !packages_dir.exists() {
-        return Ok(Vec::new());
+        return Vec::new();
     }
     let mut result = Vec::new();
-    let Ok(entries) = std::fs::read_dir(&packages_dir) else {
-        return Ok(result);
+    let Ok(entries) = std::fs::read_dir(packages_dir) else {
+        return result;
     };
     for entry in entries.flatten() {
         let path = entry.path();
         if path.extension().and_then(|e| e.to_str()) == Some("ofm") {
-            if let Some(info) = package_info_from_path(&path) {
+            if let Some(info) = package_info_from_path(&path, include_logo) {
                 result.push(info);
             }
         }
     }
     result.sort_by(|a, b| a.name.cmp(&b.name));
-    Ok(result)
+    result
 }
 
 /// Reject any package id that contains path separators or traversal tokens.

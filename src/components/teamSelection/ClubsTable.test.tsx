@@ -2,7 +2,13 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { createTeam } from "../../test-utils/factories";
+import type { ClubSquadRatings } from "../../services/teamsService";
 import ClubsTable from "./ClubsTable";
+
+// The backend's keys are resolved by `resolveBackendText`; here a key reads as itself.
+vi.mock("../../utils/backendI18n", () => ({
+  resolveBackendText: (key: string | undefined, fallback: string) => key ?? fallback,
+}));
 
 vi.mock("react-i18next", () => ({
   initReactI18next: { type: "3rdParty", init: () => {} },
@@ -30,6 +36,34 @@ const CLUBS = [
 ];
 const AVERAGES: Record<string, number | null> = { a: 61, b: 74, c: null };
 
+/** The backend's facts for each club (c has none yet): the figures the table shows and sorts by. */
+function factsFor(
+  team: (typeof CLUBS)[number],
+  reputationKey: string,
+  expectationKey: string,
+): ClubSquadRatings {
+  return {
+    team_id: team.id,
+    average_rating: 70,
+    players: [],
+    stadium_name: "Ground",
+    stadium_capacity: 10_000,
+    transfer_budget: team.transfer_budget,
+    weekly_wage_budget: 150_000,
+    balance: 1_000_000,
+    colors: { primary: "#112233", secondary: "#ffffff" },
+    founded_year: 1900,
+    competitions: [],
+    key_players: [],
+    reputation_key: reputationKey,
+    opening_expectation: { target_position: 5, label_key: expectationKey },
+  };
+}
+const FACTS: Record<string, ClubSquadRatings> = {
+  a: factsFor(CLUBS[0], "teamSelect.repAverage", "teamSelect.expectations.midTable"),
+  b: factsFor(CLUBS[1], "teamSelect.repStrong", "teamSelect.expectations.title"),
+};
+
 function renderTable(overrides: Partial<Parameters<typeof ClubsTable>[0]> = {}) {
   const handlers = { onSearchChange: vi.fn(), onSelectTeam: vi.fn() };
   render(
@@ -40,6 +74,7 @@ function renderTable(overrides: Partial<Parameters<typeof ClubsTable>[0]> = {}) 
       search=""
       selectedTeamId={null}
       getTeamAvgOvr={(id) => AVERAGES[id] ?? null}
+      getClubFacts={(id) => FACTS[id]}
       {...handlers}
       {...overrides}
     />,
@@ -84,11 +119,12 @@ describe("ClubsTable", () => {
       "Alpha FC",
       "Charlie Rovers",
     ]);
-    expect(
-      within(
-        screen.getByRole("button", { name: "Charlie Rovers" }).closest("tr") as HTMLElement,
-      ).getByText("—"),
-    ).toBeInTheDocument();
+    // His row has no rating chip and reads dashes (his facts have not come either), not a zero.
+    const charlie = within(
+      screen.getByRole("button", { name: "Charlie Rovers" }).closest("tr") as HTMLElement,
+    );
+    expect(charlie.queryByTitle(/common\.overallRating/)).toBeNull();
+    expect(charlie.getAllByText("—").length).toBeGreaterThan(0);
   });
 
   /**
@@ -111,6 +147,28 @@ describe("ClubsTable", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Charlie Rovers" }));
     expect(handlers.onSelectTeam).toHaveBeenCalledWith("c");
+  });
+
+  /**
+   * Given the backend's facts for two clubs, and none yet for a third
+   * When the table is drawn
+   * Then each club's reputation word and the board's expectation are the keys the backend names,
+   *      its wage budget is already weekly (its unit written once), and the club with no facts yet
+   *      reads dashes: the table judges no number.
+   */
+  it("shows the reputation word and the expectation the backend names, and dashes before it answers", () => {
+    renderTable();
+
+    const rowOf = (name: string) =>
+      screen.getByRole("button", { name }).closest("tr") as HTMLElement;
+    expect(rowOf("Alpha FC")).toHaveTextContent("teamSelect.repAverage");
+    expect(rowOf("Alpha FC")).toHaveTextContent("teamSelect.expectations.midTable");
+    expect(rowOf("Alpha FC")).toHaveTextContent("150K/wk");
+    expect(rowOf("Alpha FC")).not.toHaveTextContent(/week/i);
+    expect(rowOf("Northbridge Athletic Football and Athletics Club")).toHaveTextContent(
+      "teamSelect.repStrong",
+    );
+    expect(rowOf("Charlie Rovers")).not.toHaveTextContent("teamSelect.rep");
   });
 
   it("sorts by a pressed header, and the other way on a second press", () => {

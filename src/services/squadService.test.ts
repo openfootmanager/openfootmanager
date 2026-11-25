@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
-import { getSquad, setPlayerSquadRole } from "./squadService";
+import {
+  applyTacticPreset,
+  getSquad,
+  getTacticsBlueprintStatus,
+  setPlayerSquadRole,
+} from "./squadService";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -12,6 +17,48 @@ const mockedInvoke = vi.mocked(invoke);
 describe("squadService", () => {
   beforeEach(() => {
     mockedInvoke.mockReset();
+  });
+
+  /**
+   * Given the backend's blueprint status
+   * When it is asked with no play style, and then with HighPress
+   * Then the first call names no style (the team's own) and the second names HighPress.
+   */
+  it("asks about the team's own style's blueprint, or about a given style's", async () => {
+    mockedInvoke.mockResolvedValue({ modified: true });
+
+    await getTacticsBlueprintStatus();
+    await getTacticsBlueprintStatus("HighPress");
+
+    expect(mockedInvoke).toHaveBeenNthCalledWith(1, "get_tactics_blueprint_status", undefined);
+    expect(mockedInvoke).toHaveBeenNthCalledWith(2, "get_tactics_blueprint_status", {
+      playStyle: "HighPress",
+    });
+  });
+
+  /**
+   * Given a preset
+   * When it is applied whole, and, in another call, keeping the manager's instructions
+   * Then the whole preset sends no `keepInstructions`, and keeping sends `keepInstructions: true`,
+   *      both through the one apply_tactic_preset command.
+   */
+  it("applies a preset whole, or keeping the manager's instructions, in one command", async () => {
+    mockedInvoke.mockResolvedValue({});
+
+    await applyTacticPreset("3-4-3", "HighPress");
+    await applyTacticPreset("3-4-3", "HighPress", true);
+
+    expect(mockedInvoke).toHaveBeenNthCalledWith(1, "apply_tactic_preset", {
+      careerToken: 0,
+      formation: "3-4-3",
+      playStyle: "HighPress",
+    });
+    expect(mockedInvoke).toHaveBeenNthCalledWith(2, "apply_tactic_preset", {
+      careerToken: 0,
+      formation: "3-4-3",
+      keepInstructions: true,
+      playStyle: "HighPress",
+    });
   });
 
   it("calls the set player squad role backend command", async () => {

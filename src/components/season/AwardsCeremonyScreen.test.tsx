@@ -1,7 +1,13 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { GameStateData, ManagerData, PlayerData, TeamData } from "../../store/gameStore";
+import type {
+  GameStateData,
+  ManagerData,
+  NewsArticle,
+  PlayerData,
+  TeamData,
+} from "../../store/gameStore";
 import type { SeasonAwardsData } from "../../store/types";
 import AwardsCeremonyScreen from "./AwardsCeremonyScreen";
 import { createSeasonContext } from "../../test-utils/factories";
@@ -24,6 +30,7 @@ vi.mock("react-i18next", () => ({
       if (key === "awardsCeremony.rating") return "Rating";
       if (key === "awardsCeremony.winRate") return "Win rate";
       if (key === "awardsCeremony.record") return "Record";
+      if (key === "common.freeAgent") return "Free agent";
       return key;
     },
     i18n: { language: "en" },
@@ -223,6 +230,68 @@ describe("AwardsCeremonyScreen", () => {
   });
 
   /**
+   * Given a golden boot won by a player at no club (team id empty, whatever name was stored)
+   * When the ceremony is drawn
+   * Then the team line is the translated "free agent", not the stored literal or an empty line.
+   */
+  it("words a winner at no club as a free agent", () => {
+    const awards = createAwards();
+    awards.golden_boot = [
+      { player_id: "player-1", player_name: "Victor Vale", team_id: "", team_name: "", value: 24 },
+    ];
+    awards.player_of_year = [];
+
+    render(
+      <AwardsCeremonyScreen
+        season={6}
+        leagueName="Premier League"
+        gameState={createGameState()}
+        awards={awards}
+      />,
+    );
+
+    expect(screen.getByText("Free agent")).toBeInTheDocument();
+  });
+
+  /**
+   * Given an article-only winner at no club, while a real club happens to carry the same name as
+   *      the translated label
+   * When the ceremony is drawn with a team-selection handler
+   * Then the winner's team line is not a link to that club: the marker, not the display label,
+   *      says "no club".
+   */
+  it("does not link an article-only winner at no club to a club named like the label", () => {
+    const base = createGameState();
+    const gameState = {
+      ...base,
+      teams: [...base.teams, createTeam({ id: "team-9", name: "Free agent" })],
+    };
+    const article = {
+      id: "season_awards_6",
+      category: "Editorial",
+      i18n_params: {
+        season: "6",
+        goldenBootWinner: "Victor Vale",
+        goldenBootTeam: "common.freeAgent",
+        goldenBootGoals: "24",
+      },
+    } as unknown as NewsArticle;
+
+    render(
+      <AwardsCeremonyScreen
+        season={6}
+        leagueName="Premier League"
+        gameState={gameState}
+        article={article}
+        onSelectTeam={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Free agent")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Free agent" })).toBeNull();
+  });
+
+  /**
    * Given the awards of a season in a league stored under its English template name
    * When the ceremony subtitle is drawn
    * Then the league is named through the competition's name key and country, as every screen does.
@@ -319,5 +388,40 @@ describe("AwardsCeremonyScreen", () => {
       <AwardsCeremonyScreen season={2026} leagueName="League" gameState={createGameState()} />,
     );
     expect(screen.queryByText("Player of the Year")).not.toBeInTheDocument();
+  });
+  /**
+   * Given a season-awards article with no stored awards (the route a News article opens), whose
+   *      Golden Boot winner was at no club: the team param is the free-agent key, the legacy English
+   *      literal an older article stored, or empty
+   * When the ceremony is drawn from the article alone
+   * Then the team line says "free agent" for each, never the literal or an empty line.
+   */
+  it.each([
+    ["the free-agent key", "common.freeAgent"],
+    ["the legacy English literal", "Free Agent"],
+    ["an empty name", ""],
+  ])("words an article-only winner at no club as a free agent: %s", (_case, teamParam) => {
+    const article = {
+      id: "season_awards_6",
+      category: "Editorial",
+      i18n_params: {
+        season: "6",
+        goldenBootWinner: "Victor Vale",
+        goldenBootTeam: teamParam,
+        goldenBootGoals: "24",
+      },
+    } as unknown as NewsArticle;
+
+    render(
+      <AwardsCeremonyScreen
+        season={6}
+        leagueName="Premier League"
+        gameState={createGameState()}
+        article={article}
+      />,
+    );
+
+    expect(screen.getByText("Free agent")).toBeInTheDocument();
+    expect(screen.queryByText("Free Agent")).toBeNull();
   });
 });

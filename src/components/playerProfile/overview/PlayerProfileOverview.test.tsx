@@ -65,7 +65,11 @@ const striker: PositionRatings = {
         { attribute: "positioning", value: 81 },
         { attribute: "decisions", value: 70 },
       ],
-      weights: STRIKER_WEIGHTS.map(([attribute, weight]) => ({ attribute, weight })),
+      weights: STRIKER_WEIGHTS.map(([attribute, weight]) => ({
+        attribute,
+        weight,
+        importance: weight >= 16 ? 3 : weight >= 8 ? 2 : 1,
+      })),
     },
   ],
 };
@@ -199,8 +203,8 @@ describe("PlayerProfileOverview", () => {
     render(<PlayerProfileOverview {...props()} />);
     const details = within(screen.getByRole("region", { name: "Details" }));
 
-    expect(details.getByText(/March 14, 2002/)).toBeInTheDocument();
-    expect(details.getByText(/June 30, 2028/)).toBeInTheDocument();
+    expect(details.getByText(/14 March 2002/)).toBeInTheDocument();
+    expect(details.getByText(/30 June 2028/)).toBeInTheDocument();
     expect(details.getByText("Stable")).toBeInTheDocument();
     expect(details.getByText("€23k/wk")).toBeInTheDocument();
     expect(details.getByText("Potential opinion block")).toBeInTheDocument();

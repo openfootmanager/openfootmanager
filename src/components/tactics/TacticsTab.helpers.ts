@@ -1,20 +1,12 @@
 import { getPlayerOvr } from "../../lib/helpers";
 import { isFirstTeamSquadPlayer } from "../../lib/playerSquad";
-import { naturalPositionOf } from "../../lib/positions";
 import type { FamiliarityTable } from "../../hooks/useFamiliarity";
 import type { PositionTable } from "../../lib/positionTable";
 import type { PlayerData } from "../../store/gameStore";
-import {
-  type PitchSlotRow,
-  getPreferredPositions,
-  isPlayerOutOfPosition,
-  positionCode,
-  type SquadSection,
-} from "../squad/SquadTab.helpers";
+import type { TacticsLineup } from "../../store/generated/TacticsLineup";
+import type { PlayerRole } from "../../store/types";
+import { type PitchSlotRow, isPlayerOutOfPosition } from "../squad/SquadTab.helpers";
 export { FORMATIONS } from "../match/types";
-
-export type SortDirection = "asc" | "desc";
-export type SortKey = "pos" | "name" | "condition" | "morale" | "ovr";
 
 export interface TacticsPresetDefinition {
   descriptionKey: string;
@@ -65,22 +57,6 @@ export const TACTICS_PRESETS: TacticsPresetDefinition[] = [
   },
 ];
 
-interface TacticsPlayerSortContext {
-  positionTable: PositionTable;
-  section: SquadSection;
-  sortDir: SortDirection;
-  sortKey: SortKey;
-  xiActivePosition: Map<string, string>;
-}
-
-interface TacticsPlayerFilterContext {
-  playerSearch: string;
-  positionTable: PositionTable;
-  positionFilter: string;
-  section: SquadSection;
-  xiActivePosition: Map<string, string>;
-}
-
 export function buildTacticsRoster(
   players: PlayerData[],
   teamId: string,
@@ -95,102 +71,6 @@ export function buildTacticsRoster(
         getPlayerOvr(rightPlayer) - getPlayerOvr(leftPlayer)
       );
     });
-}
-
-export function getSectionPlayerPosition(
-  player: PlayerData,
-  section: SquadSection,
-  xiActivePosition: Map<string, string>,
-): string {
-  if (section === "xi") {
-    return xiActivePosition.get(player.id) ?? player.position;
-  }
-
-  return naturalPositionOf(player);
-}
-
-export function sortTacticsPlayers(
-  players: PlayerData[],
-  context: TacticsPlayerSortContext,
-): PlayerData[] {
-  const { positionTable, section, sortDir, sortKey, xiActivePosition } = context;
-  const sortedPlayers = [...players].sort((leftPlayer, rightPlayer) => {
-    const leftPosition = getSectionPlayerPosition(leftPlayer, section, xiActivePosition);
-    const rightPosition = getSectionPlayerPosition(rightPlayer, section, xiActivePosition);
-
-    switch (sortKey) {
-      case "pos":
-        return (
-          positionTable.lineRankOf(leftPosition) - positionTable.lineRankOf(rightPosition) ||
-          getPlayerOvr(rightPlayer) - getPlayerOvr(leftPlayer)
-        );
-      case "name":
-        return leftPlayer.full_name.localeCompare(rightPlayer.full_name);
-      case "condition":
-        return leftPlayer.condition - rightPlayer.condition;
-      case "morale":
-        return leftPlayer.morale - rightPlayer.morale;
-      case "ovr":
-        return getPlayerOvr(leftPlayer) - getPlayerOvr(rightPlayer);
-      default:
-        return 0;
-    }
-  });
-
-  if (sortDir === "desc") {
-    return sortedPlayers.reverse();
-  }
-
-  return sortedPlayers;
-}
-
-export function matchesTacticsPlayerFilters(
-  player: PlayerData,
-  context: TacticsPlayerFilterContext,
-): boolean {
-  const { playerSearch, positionFilter, positionTable, section, xiActivePosition } = context;
-  const currentPosition = positionTable.groupOf(
-    getSectionPlayerPosition(player, section, xiActivePosition),
-  );
-  const preferredPositions = getPreferredPositions(player);
-  const normalizedSearch = playerSearch.trim().toLowerCase();
-
-  if (normalizedSearch) {
-    const searchableText = [
-      player.full_name,
-      player.match_name,
-      currentPosition,
-      ...preferredPositions,
-      ...preferredPositions.map(positionCode),
-    ]
-      .join(" ")
-      .toLowerCase();
-
-    if (!searchableText.includes(normalizedSearch)) {
-      return false;
-    }
-  }
-
-  if (
-    positionFilter !== "All" &&
-    currentPosition !== positionFilter &&
-    !preferredPositions.includes(positionFilter)
-  ) {
-    return false;
-  }
-
-  return true;
-}
-
-export function filterAndSortTacticsPlayers(
-  players: PlayerData[],
-  filterContext: TacticsPlayerFilterContext,
-  sortContext: TacticsPlayerSortContext,
-): PlayerData[] {
-  return sortTacticsPlayers(
-    players.filter((player) => matchesTacticsPlayerFilters(player, filterContext)),
-    sortContext,
-  );
 }
 
 export function countOutOfPositionPlayers(
@@ -274,4 +154,20 @@ export function findTacticsPresetBySetup(
       (preset) => preset.formation === formation && preset.playStyle === playStyle,
     ) ?? null
   );
+}
+
+/**
+ * The role each starter plays, as the match will play it: the backend's lineup names it slot by slot
+ * (the role he was given if his slot admits it, else the standard one), and it wins over the role
+ * stored on the player, which a move to another slot can leave stale (a striker's poacher moved to
+ * left-back). The table and the pitch both show this, so they cannot disagree.
+ */
+export function effectivePlayerRoles(
+  lineup: TacticsLineup | null,
+  playerRoles: Record<string, PlayerRole> | undefined,
+): Record<string, PlayerRole> | undefined {
+  if (!lineup) return playerRoles;
+  const roles: Record<string, PlayerRole> = { ...playerRoles };
+  for (const slot of lineup.eleven) roles[slot.player_id] = slot.role;
+  return roles;
 }

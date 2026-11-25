@@ -1,5 +1,7 @@
 #[path = "end_of_season_tests/player_statistics.rs"]
 mod player_statistics;
+#[path = "end_of_season_tests/promotion_notices.rs"]
+mod promotion_notices;
 #[path = "end_of_season_tests/season_story.rs"]
 mod season_story;
 
@@ -1157,69 +1159,6 @@ fn promoted_user_receives_a_promotion_message() {
     );
 }
 
-/// Given a generated division (stored under its English template name, carrying a name key)
-/// When the user is promoted into it
-/// Then the notice also carries the key, country and edition, so the screen names the division in
-///      the player's language instead of the stored English name.
-#[test]
-fn promotion_message_carries_the_divisions_name_key_country_and_season() {
-    let mut game = make_two_division_game("team3");
-    for competition in game.competitions.iter_mut() {
-        if competition.name == "ENG First Division" {
-            competition.name_key = Some("tournaments.competitions.firstDivision".to_string());
-        }
-    }
-
-    process_end_of_season(&mut game);
-
-    let renewed = ofm_core::end_of_season::club_league_table(&game, "team3")
-        .expect("the user still has a division")
-        .season;
-    let msg = game
-        .messages
-        .iter()
-        .find(|m| m.id == format!("promotion_{renewed}"))
-        .expect("promoted user must be told");
-    assert_eq!(
-        msg.i18n_params.get("divisionKey"),
-        Some(&"tournaments.competitions.firstDivision".to_string())
-    );
-    assert_eq!(
-        msg.i18n_params.get("divisionCountry"),
-        Some(&"ENG".to_string())
-    );
-    assert_eq!(
-        msg.i18n_params.get("divisionSeason"),
-        Some(&renewed.to_string())
-    );
-    assert_eq!(
-        msg.i18n_params.get("division"),
-        Some(&"ENG First Division".to_string()),
-        "the stored name stays as the fallback"
-    );
-}
-
-/// Given a division with no name key (a hand-made one)
-/// When the user is promoted into it
-/// Then the notice carries only the stored name, as before.
-#[test]
-fn promotion_message_without_a_name_key_carries_no_key_params() {
-    let mut game = make_two_division_game("team3");
-
-    process_end_of_season(&mut game);
-
-    let renewed = ofm_core::end_of_season::club_league_table(&game, "team3")
-        .expect("the user still has a division")
-        .season;
-    let msg = game
-        .messages
-        .iter()
-        .find(|m| m.id == format!("promotion_{renewed}"))
-        .expect("promoted user must be told");
-    assert!(!msg.i18n_params.contains_key("divisionKey"));
-    assert!(!msg.i18n_params.contains_key("divisionCountry"));
-}
-
 /// The season preview article the rollover published, and the clubs it names.
 fn season_preview(game: &Game) -> (String, Vec<String>, String, String) {
     let preview = game
@@ -1414,8 +1353,10 @@ fn a_user_with_no_division_gets_no_season_preview() {
 }
 
 /// The two-division world with the user's manager sacked from `last_club`: his stint there opened
-/// and closed as the game records it, and the `game.league` mirror synced as the game syncs it (with
-/// no club, from the first competition, the first division).
+/// and closed as the game records it, and the `game.league` mirror put back on the first division,
+/// the world's first competition. The game now syncs a sacked manager's mirror to his last club's
+/// league (#1296), but the end-of-season screens must follow that club by themselves, not through the
+/// mirror (a mirror that is stale, as the turn loop leaves it between syncs, must not change them).
 fn sacked_from(last_club: &str) -> Game {
     let mut game = make_two_division_game(last_club);
     game.manager
@@ -1427,6 +1368,7 @@ fn sacked_from(last_club: &str) -> Game {
         ));
     game.manager.fire("2025-03-01");
     game.sync_legacy_league();
+    game.league = game.competitions.first().cloned();
     game
 }
 
@@ -4500,6 +4442,7 @@ fn make_retired_player(id: &str) -> domain::player::Player {
         appearances: 30,
         goals: 5,
         assists: 8,
+        ..Default::default()
     });
     p
 }
@@ -4744,6 +4687,7 @@ fn retired_this_season_after_thirteen_seasons(
             appearances: 30,
             goals: 0,
             assists: 0,
+            ..Default::default()
         })
         .collect();
     domain::retired_player::RetiredPlayer::from_player(

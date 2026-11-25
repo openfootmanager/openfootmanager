@@ -85,12 +85,12 @@ mod tests {
     #[test]
     fn a_job_application_for_a_replaced_career_is_refused() {
         let state = state_in_career(2);
-        let before = serde_json::to_value(state.get_game(|g| g.clone()).unwrap()).unwrap();
+        let before = crate::commands::game_json::active_game_json(&state);
 
         let refused = apply_for_job_internal(&state, Career::Token(1), "team-9");
 
         assert_eq!(refused.err(), Some("be.error.careerChanged".to_string()));
-        let after = serde_json::to_value(state.get_game(|g| g.clone()).unwrap()).unwrap();
+        let after = crate::commands::game_json::active_game_json(&state);
         assert_eq!(after, before);
         let applied = apply_for_job_internal(&state, Career::Token(2), "team-9").unwrap();
         assert_eq!(applied["result"], "hired", "{applied}");

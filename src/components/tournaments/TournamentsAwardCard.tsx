@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { storedTeamLabel } from "../../lib/team";
 import type { SeasonAwardEntryData, SeasonManagerAwardEntryData } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
 import { Card, CardHeader, CardBody } from "../ui";
@@ -106,7 +107,9 @@ export default function TournamentsAwardCard({
                     >
                       {entryName(entry)}
                     </p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500">{entry.team_name}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">
+                      {storedTeamLabel(entry.team_name, t)}
+                    </p>
                   </div>
                   <span
                     className={`font-heading font-bold tabular-nums ${

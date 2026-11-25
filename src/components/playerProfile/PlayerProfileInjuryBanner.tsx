@@ -18,14 +18,14 @@ export default function PlayerProfileInjuryBanner({ injury, t }: PlayerProfileIn
     <Card accent="danger" className="mb-5">
       <CardBody>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center">
-            <AlertTriangle className="w-5 h-5 text-red-500" />
+          <div className="w-10 h-10 rounded-lg bg-danger-tint flex items-center justify-center">
+            <AlertTriangle className="w-5 h-5 text-danger" />
           </div>
           <div>
-            <p className="font-semibold text-sm text-red-600 dark:text-red-400">
+            <p className="font-semibold text-body text-danger">
               {resolvePlayerInjuryName(injury.name, t)}
             </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
+            <p className="text-caption text-fg-muted">
               {t("playerProfile.daysRemaining", {
                 count: injury.days_remaining,
               })}

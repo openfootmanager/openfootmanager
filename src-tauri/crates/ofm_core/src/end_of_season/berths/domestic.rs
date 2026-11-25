@@ -159,14 +159,11 @@ pub(crate) fn apply_domestic_berth_promotion_relegation(
         // feeder supplied a promoted club when more of them qualified than the
         // target had places. Rank, then id: the higher division's place-getters
         // go up first, and ties break on a name rather than on a vector index.
-        feeder_plans.sort_by(|left, right| {
-            let key = |index: usize| {
-                (
-                    game.competitions[index].priority,
-                    game.competitions[index].id.clone(),
-                )
-            };
-            key(left.0).cmp(&key(right.0))
+        feeder_plans.sort_by_key(|(index, _)| {
+            super::tier_rank(
+                game.competitions[*index].priority,
+                &game.competitions[*index].id,
+            )
         });
 
         let mut entrants: Vec<String> = {

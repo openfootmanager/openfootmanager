@@ -54,6 +54,7 @@ export default function DashboardWorkspaceContent({
     // The workspace owns the page's scroll (layout rule L1); min-h-0 lets it shrink inside the column
     // so it scrolls rather than growing past the window.
     <div
+      data-workspace=""
       data-fills-workspace={fillsWorkspace ? "true" : undefined}
       className={
         fillsWorkspace

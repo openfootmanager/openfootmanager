@@ -395,6 +395,7 @@ impl GamePersistenceReader {
             gate_settled_from: meta.gate_settled_from.clone(),
             last_season_rollover_on: meta.last_season_rollover_on.clone(),
             career_token: 0,
+            revision: 0,
             clock,
             manager_id: meta.manager_id.clone(),
             managers,

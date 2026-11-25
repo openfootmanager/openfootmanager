@@ -175,9 +175,14 @@ mod tests {
                 .map(|i| inbox::InboxMessage {
                     id: format!("m{i}"),
                     subject: "Hello".to_string(),
+                    body: String::new(),
+                    sender: String::new(),
+                    sender_role: String::new(),
                     category: "Welcome".to_string(),
                     read: false,
                     date: "2026-08-01".to_string(),
+                    actions: Vec::new(),
+                    details: Default::default(),
                 })
                 .collect(),
         };

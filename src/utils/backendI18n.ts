@@ -5,7 +5,9 @@ import { formatExactMoney, formatPreciseCompact } from "../lib/helpers";
 import { formatDate } from "../lib/dateFormatting";
 import { formatOrdinal } from "../lib/ordinal";
 import { countryName } from "../lib/countries";
+import { storedTeamLabel } from "../lib/team";
 import { competitionDisplayName } from "../lib/competitionName";
+import type { CompetitionSeasonPhase } from "../store/generated/CompetitionSeasonPhase";
 import { useSettingsStore } from "../store/settingsStore";
 import type {
   MessageActionOption,
@@ -526,6 +528,10 @@ function normalizeSeasonPreviewDivision(
   };
 }
 
+function parseDivisionPhase(value: string | undefined): CompetitionSeasonPhase | undefined {
+  return value === "annual" || value === "opening" || value === "closing" ? value : undefined;
+}
+
 function normalizeMatchReportParams(
   article: NewsArticle,
   params?: Record<string, string>,
@@ -660,6 +666,8 @@ function normalizeDivisionName(
   if (!isDivisionChange || !params?.divisionKey) return params;
 
   const season = Number(params.divisionSeason);
+  const divisionTier = Number(params.divisionTier);
+  const phase = parseDivisionPhase(params.divisionPhase);
   return {
     ...params,
     division: competitionDisplayName(
@@ -668,6 +676,9 @@ function normalizeDivisionName(
         name_key: params.divisionKey,
         country_id: params.divisionCountry ?? null,
         season: Number.isFinite(season) ? season : undefined,
+        division_tier:
+          Number.isInteger(divisionTier) && divisionTier > 0 ? divisionTier : undefined,
+        calendar: phase ? { season: { division: { phase } } } : undefined,
       },
       (key, options) => i18n.t(key, options),
     ),
@@ -762,7 +773,29 @@ type ArticleParamNormalizer = (
 
 // Each normalizer reads only from the original i18n_params keys — none consumes
 // output written by another normalizer — so array order is currently inconsequential.
+/**
+ * A season-awards article names its winners' clubs by param. A winner at no club carries the
+ * free-agent key (resolved with the other params); an older article carries the English literal, or
+ * nothing, so those become the key too.
+ */
+function normalizeSeasonAwardsParams(
+  article: NewsArticle,
+  params?: Record<string, string>,
+): Record<string, string> | undefined {
+  if (!article.body_key?.startsWith("be.news.seasonAwards.") || !params) {
+    return params;
+  }
+  const normalized = { ...params };
+  for (const key of ["goldenBootTeam", "potyTeam"]) {
+    if (key in normalized) {
+      normalized[key] = storedTeamLabel(normalized[key], (teamKey) => teamKey);
+    }
+  }
+  return normalized;
+}
+
 const ARTICLE_PARAM_NORMALIZERS: ArticleParamNormalizer[] = [
+  normalizeSeasonAwardsParams,
   normalizePreseasonDigestParams,
   normalizeRoundupParams,
   normalizeStandingsParams,

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import PlayerProfileTerminationModal from "./PlayerProfileTerminationModal";
@@ -21,6 +21,7 @@ function translate(key: string, params?: Record<string, string | number>): strin
 
 function buildPreview(
   overrides: Partial<ContractTerminationPreviewData["squad_safety"]> = {},
+  squadFloorRefusal: string | null = null,
 ): ContractTerminationPreviewData {
   return {
     player_id: "player-1",
@@ -36,6 +37,7 @@ function buildPreview(
       missing_reasons: [],
       ...overrides,
     },
+    squad_floor_refusal: squadFloorRefusal,
   };
 }
 
@@ -103,6 +105,24 @@ describe("PlayerProfileTerminationModal", () => {
     expect(onConfirm).not.toHaveBeenCalled();
   });
 
+  // Given a release the squad floor would refuse, the dialog says why and refuses to confirm,
+  // instead of confirming and failing afterwards (#1398).
+  it("blocks confirmation, with the floor's reason, when the squad would fall below the floor", () => {
+    const { onConfirm } = renderModal({
+      preview: buildPreview({}, "be.error.squadFloor.wouldLeaveSeniorsShort?floor=15"),
+    });
+
+    expect(
+      screen.getByText(/the club would be left with fewer than 15 senior players/),
+    ).toBeInTheDocument();
+
+    const confirm = screen.getByRole("button", { name: "Terminate Contract" });
+    expect(confirm).toBeDisabled();
+
+    fireEvent.click(confirm);
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
   it("blocks confirmation while the preview is still loading", () => {
     renderModal({ preview: null });
 
@@ -130,5 +150,25 @@ describe("PlayerProfileTerminationModal", () => {
     renderModal({ errorMessage: "Could not release this player." });
 
     expect(screen.getByText("Could not release this player.")).toBeInTheDocument();
+  });
+
+  /**
+   * Given the confirm button, enabled (the squad can still field a matchday XI) and disabled (it
+   *       cannot)
+   * When its label is read
+   * Then the span that owns the text carries the danger colour in both: the outline button sets
+   *      its own text colour, which would otherwise win over one set on the button
+   */
+  it("keeps the confirm label in the danger colour, enabled or disabled", () => {
+    renderModal();
+    const enabled = screen.getByText("Terminate Contract", { selector: "span" });
+    expect(enabled).toHaveClass("text-danger");
+    expect(enabled.closest("button")).toBeEnabled();
+    cleanup();
+
+    renderModal({ preview: buildPreview({ can_field_matchday_squad: false }) });
+    const disabled = screen.getByText("Terminate Contract", { selector: "span" });
+    expect(disabled).toHaveClass("text-danger");
+    expect(disabled.closest("button")).toBeDisabled();
   });
 });

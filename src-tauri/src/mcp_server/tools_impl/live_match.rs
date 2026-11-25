@@ -236,21 +236,17 @@ pub fn match_finish(ctx: Arc<McpContext>) -> Result<MatchFinished, String> {
     })
 }
 
-/// Apply a team talk during a match (half-time or full-time).
+/// Give a team talk at half-time (or half-time of extra time) of a live match, or once after the
+/// user's match has finished (after `match_finish`). One talk per moment, and the game says how the
+/// match stands from the score: the agent chooses only the tone.
 /// tone: "calm" | "motivational" | "assertive" | "aggressive" | "praise" | "disappointed"
-/// context: "winning" | "losing" | "drawing"
-pub fn match_team_talk(
-    ctx: Arc<McpContext>,
-    tone: String,
-    context: String,
-) -> Result<TeamTalkApplied, String> {
+pub fn match_team_talk(ctx: Arc<McpContext>, tone: String) -> Result<TeamTalkApplied, String> {
     // Resolves the manager's team before the loop that adjusts morale, so an
     // error path never leaves a half-applied team talk behind.
-    let results = crate::commands::live_match::apply_team_talk_on(
+    let talk = crate::commands::live_match::apply_team_talk_on(
         &ctx.state_manager,
         ofm_core::state::Career::Active,
         &tone,
-        &context,
     )?;
 
     {
@@ -260,8 +256,9 @@ pub fn match_team_talk(
 
     Ok(TeamTalkApplied {
         tone,
-        context,
-        reactions: results
+        context: talk.context.to_string(),
+        reactions: talk
+            .changes
             .iter()
             .map(|result| MoraleChange {
                 player_id: result["player_id"].as_str().unwrap_or("?").to_string(),

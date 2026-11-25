@@ -194,7 +194,7 @@ Defines a specific player. Reference teams and countries by their `id`.
 | `attributes` | object or null | no | `null` | Explicit attribute block. Replaces `overall`-based generation entirely — this is not a partial override, so any of the 19 attributes you omit takes its serde default (8 are optional; the other 11 are required). |
 | `contractStart` | string or null | no | `null` | ISO date (`"YYYY-MM-DD"`) the current contract began. Omit it and the start is given when a career opens. See [Contracts](#contracts). |
 | `contractEnd` | string or null | no | `null` | ISO date the contract ends. Give this **or** `contractLength`, not both. |
-| `contractLength` | integer (1–5) or null | no | `null` | Contract length in whole years, as an alternative to `contractEnd`. |
+| `contractLength` | integer (1–5) or null | no | `null` | Contract length in years, as an alternative to `contractEnd`; ends on 30 June. |
 | `wage` | integer or null | no | `null` | **Weekly** wage in the game's money. Omit it and it is sized from the player's value. |
 | `value` | integer (0–9007199254740991) or null | no | `null` | Market value in the game's money. Omit it and it is sized from ability and age. |
 | `weakFoot` | integer (1–5) or null | no | `null` | Weak-foot skill. Only kept for a specific `position`; see [Identity fields](#identity-fields). |
@@ -212,8 +212,8 @@ A contract runs from a start to an end, and you can write either or both ends of
 - **`contractEnd`** is an absolute date. It is exactly right for the period you wrote the package
   for, and nonsense outside it: a squad built for 2010 and played in 2026 has every contract long
   expired. Use it when you want that.
-- **`contractLength`** is a number of whole years, 1 to 5 (the same ceiling negotiation uses). It is
-  counted from `contractStart` when you give one, and otherwise from the year the career opens in,
+- **`contractLength`** is a number of years, 1 to 5 (the same ceiling negotiation uses). It is
+  counted from the year of `contractStart` when you give one, and otherwise from the year the career opens in,
   ending on 30 June like every generated contract. So the same package works whichever year a player
   starts in. Use this for a package meant to be played in any era.
 - Give **one or the other**. Writing both is an error, because they say the same thing two ways.
@@ -467,7 +467,7 @@ Competitions are the most complex entity. A competition defines a league, cup, o
 | `countryId` | string or null | `null` | Country this competition belongs to (required for `Domestic` scope). |
 | `regionId` | string or null | `null` | Region this competition belongs to (required for `Regional`/`Continental` scope). |
 | `requiredRegionIds` | array of strings | `[]` | Region ids that must be active for this competition to appear. |
-| `priority` | integer | `0` | Tier rank within a country: **lower is the higher division**. Domestic `League` competitions in `LeagueTable` format that share a `countryId` form a promotion/relegation pyramid ordered by it, so a first division is `0` and a second `1`. Gaps are fine — tiers are chained in rank order, not by consecutive numbers — but two tiers of one pyramid must not share a value. A tier that is the target of a `positionRange` berth, or one of several feeders into the same target, is filled through those berths instead and leaves the linear ladder, so it is exempt. Also ranks continental cups by prestige, lowest first. |
+| `priority` | integer | `0` | Tier rank within a country: **lower is the higher division**. Domestic `League` competitions in `LeagueTable` format that share a `countryId` form a promotion/relegation pyramid ordered by it, so a first division is `0` and a second `1`. Gaps are fine — tiers are chained in rank order, not by consecutive numbers — but two tiers of one pyramid must not share a value. A tier that is the target of a `positionRange` berth, or one of several feeders into the same target, is filled through those berths instead and leaves the linear ladder, so it is exempt. A tier that shares its priority with such a berth-fed tier is off the ladder too (its order against the berth-fed tier is arbitrary), so it is promoted and relegated by neither. Also ranks continental cups by prestige, lowest first. |
 | `berths` | array | `[]` | Qualification spots this competition awards to other competitions. See [Berths](#berths). |
 | `seasonStartMonth` | integer (1–12) | `8` | Month the season begins. |
 | `seasonStartDay` | integer (1–31) | `1` | Day of the month the season begins. |

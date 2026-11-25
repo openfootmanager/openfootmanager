@@ -125,6 +125,8 @@ ofm-cli add player "Luis Figo" --dir my-league --format yaml
 
 Validate a package directory or a `.ofm` archive. Reports all errors with file location and i18n code.
 
+A **patch** package (`packageType: "patch"`) names clubs that its base database defines, so alone it cannot be told apart from a package with a typo: its club references are not errors, and validation prints a warning that they were not checked. Give it its base to check them as the game does when it starts a career on the stack: `ofm-cli validate my-patch --base my-league` (repeat `--base` for several; each is a directory or a `.ofm`). A club that no package in the stack defines is then reported as `unknownTeam`, the same finding the game gives.
+
 ```bash
 ofm-cli validate my-league
 ofm-cli validate my-league.ofm
@@ -135,6 +137,7 @@ ofm-cli validate my-league.ofm
 | Argument | Description |
 |----------|-------------|
 | `path` | Directory or `.ofm` file to validate |
+| `--base <path>` | A package the one being validated is stacked on (directory or `.ofm`); repeatable. Checks a patch's club references with it |
 
 **Exit codes:** `0` = valid, `1` = one or more errors
 
@@ -177,7 +180,7 @@ ofm-cli pack my-league --output ~/releases/my-league-1.0.0.ofm
 | `--output <path>` | `<id>.ofm` in current directory | Output file path |
 
 **Notes:**
-- Runs `validate` first; if there are errors the archive is not created and a full error list is printed
+- Runs the package's own checks first; if there are errors the archive is not created and a full error list is printed. It does not check a patch's references to its base database (it prints a note saying so): use `validate --base` for that
 - The default output name reads the `id` field from `package.json`
 - The archive includes all files in the directory (data + assets). Non-data files (`.md`, `.txt`, images) are preserved but not parsed by the loader
 

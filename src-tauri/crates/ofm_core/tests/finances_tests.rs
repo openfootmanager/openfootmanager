@@ -382,6 +382,42 @@ fn request_board_support_rejects_second_support_package_in_same_season() {
     assert_eq!(error, "be.error.finance.boardSupportAlreadyUsed");
 }
 
+/// Given the user's league in competitions at season 2036, and a cup of season 1 in the mirror
+/// When the club takes a board-support package
+/// Then the ledger names season 2036, the user's season, not the cup the turn loop left in the slot
+#[test]
+fn board_support_is_keyed_on_the_users_league_season_not_the_mirror() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = -25_000;
+    let mut league = League::new(
+        "eng-d1".to_string(),
+        "First Division".to_string(),
+        2036,
+        &["team1".to_string(), "team2".to_string()],
+    );
+    league.participant_ids = vec!["team1".to_string(), "team2".to_string()];
+    let mut cup = League::new(
+        "cup".to_string(),
+        "Cup".to_string(),
+        1,
+        &["team1".to_string(), "team2".to_string()],
+    );
+    cup.kind = domain::league::CompetitionType::Cup;
+    game.league = Some(cup);
+    game.competitions = vec![league];
+
+    finances::request_board_support(&mut game, "team1").expect("support");
+
+    assert_eq!(
+        game.teams[0]
+            .financial_ledger
+            .last()
+            .expect("the package is on the ledger")
+            .description,
+        "Board support package for season 2036"
+    );
+}
+
 #[test]
 fn finance_action_previews_are_available_without_mutating_state() {
     let mut game = make_monday_game();
@@ -440,6 +476,8 @@ fn facility_upgrade_previews_carry_the_block_reason_and_affordability() {
 
 fn snapshot_at(overall_status: finances::FinanceHealthLevel) -> finances::TeamFinanceSnapshot {
     finances::TeamFinanceSnapshot {
+        committed_transfer_fees: 0,
+        available_transfer_budget: 0,
         annual_wage_bill: 520_000,
         weekly_wage_spend: 10_000,
         weekly_wage_budget: 20_000,

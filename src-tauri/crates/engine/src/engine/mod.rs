@@ -271,6 +271,7 @@ mod empty_squad_tests {
             fitness: 100,
             injury_risk: 1.0,
             line_familiarity: [1.0; 4],
+            morale_factor: 1.0,
             ovr: 60,
             traits: vec![],
             role: crate::types::PlayerRole::Standard,

@@ -1,7 +1,11 @@
 // @vitest-environment node
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { HARNESS_PAGES, HARNESS_PROFILES } from "../src/dev/pageHarness/harnessPage";
+import {
+  HARNESS_PAGES,
+  HARNESS_PROFILES,
+  HARNESS_WORLD_LIBRARIES as WORLD_LIBRARIES,
+} from "../src/dev/pageHarness/harnessPage";
 import { CASES, judge, loadFaces, nodeProblem, REQUIRED_FACES } from "./page-layout-check.mjs";
 
 describe("the Node check", () => {
@@ -246,6 +250,74 @@ describe("page layout check", () => {
     ]);
   });
 
+  /**
+   * Given a control the page marks as one that must stay in the window (the way back out) and that
+   * sits below the fold, then it is named: scrolling a sidebar to find "Back" is a trap.
+   */
+  it("names a control that must stay in the window and is below it", () => {
+    expect(judge({ ...clean, belowTheFold: ["Back to main menu"] })).toEqual([
+      "below the bottom edge of the window: Back to main menu",
+    ]);
+  });
+
+  /**
+   * Given a case that asks its tables to fit (the World Editor's home: its row buttons are the way
+   *       in, and a button scrolled out of the table's view is a way in lost), and a table that
+   *       scrolls sideways inside its container
+   * Then it is named; a case that does not ask (a wide data table may scroll) is not judged by it.
+   */
+  it("names a table that scrolls sideways when the case asks its tables to fit", () => {
+    expect(judge({ ...clean, tablesFit: true, tablesScroll: ["Your worlds"] })).toEqual([
+      "table scrolls sideways inside its container: Your worlds",
+    ]);
+    expect(judge({ ...clean, tablesScroll: ["Your worlds"] })).toEqual([]);
+  });
+
+  /**
+   * Given a case that asks its region to fit, and a measurement that found the region holding more
+   *       than it shows
+   * When the case is judged
+   * Then the region is named with its heights. (How it is measured is tested through the collector,
+   *      in page-layout-check.regions.test.mjs.)
+   */
+  it("names a region that overflows when the case asks it to fit", () => {
+    expect(judge({ ...clean, regionsFit: true, regionsOverflow: ["div (1180 > 640)"] })).toEqual([
+      "a region scrolls down inside the page: div (1180 > 640)",
+    ]);
+  });
+
+  /**
+   * Given a case that asks its region to fit, and a measurement that found no such region on the page
+   * When the case is judged
+   * Then it fails saying so, rather than passing because there was nothing to measure.
+   */
+  it("fails a case whose region is missing from the page", () => {
+    expect(judge({ ...clean, regionsFit: true, regionsMissing: true })).toEqual([
+      "no visible region on the page matches the case's fit selector",
+    ]);
+  });
+
+  /**
+   * Given a case that does not ask its region to fit, and a measurement with an overflowing region and
+   *       a missing one
+   * When the case is judged
+   * Then it passes: a list that scrolls in its panel is not judged by the gate.
+   */
+  it("does not judge a case that does not ask its region to fit", () => {
+    expect(
+      judge({ ...clean, regionsOverflow: ["div (1180 > 640)"], regionsMissing: true }),
+    ).toEqual([]);
+  });
+
+  /**
+   * Given a case that asks its region to fit, and a measurement of a region that fits
+   * When the case is judged
+   * Then it passes.
+   */
+  it("passes a case whose region fits", () => {
+    expect(judge({ ...clean, regionsFit: true, regionsOverflow: [] })).toEqual([]);
+  });
+
   /** Given a command the fixture didn't answer, or a page that never rendered, then it fails. */
   it("fails an unanswered command or a blank page", () => {
     expect(judge({ ...clean, unanswered: ["get_inbox"], rendered: false })).toEqual([
@@ -267,9 +339,25 @@ describe("page layout check", () => {
       [
         ...Object.keys(HARNESS_PAGES).filter((page) => page !== "profile"),
         ...profiles,
+        ...WORLD_LIBRARIES.map(() => "worlds"),
         "style guide",
       ].sort(),
     );
+  });
+
+  /**
+   * Given the Tactics workbench, which never scrolls the page
+   * When the cases are listed
+   * Then every window judges its lineup region (the table and the pitch) and its table's columns,
+   * so a layout that squeezes the lineup to a sliver fails here
+   */
+  it("judges the Tactics lineup region and its table at every window", () => {
+    const tactics = CASES.filter((c) => c.page === "tactics");
+    expect(tactics.length).toBeGreaterThan(0);
+    for (const testCase of tactics) {
+      expect(testCase.regionsFit).toBe('[data-region="tactics-lineup"]');
+      expect(testCase.tablesFit).toBe(true);
+    }
   });
 
   /**

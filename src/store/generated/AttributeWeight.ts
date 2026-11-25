@@ -5,4 +5,9 @@ import type { AttributeKey } from "./AttributeKey";
  * How much of a position's rating one attribute is worth, in percent: the game's own table
  * (`player_rating::position_weights`), the same for every player at the position.
  */
-export type AttributeWeight = { attribute: AttributeKey, weight: number, };
+export type AttributeWeight = { attribute: AttributeKey, weight: number, 
+/**
+ * How much it counts there in three steps (`player_rating::weight_importance`), 1 to 3 for an
+ * attribute the position weighs: what the profile's dots show.
+ */
+importance: number, };

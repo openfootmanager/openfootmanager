@@ -11,7 +11,7 @@ use crate::game::Game;
 use crate::player_knowledge::{PlayerKnowledge, player_knowledge};
 use crate::player_rating::{
     Familiarity, canonical_position, deployed_position, familiarity, key_attributes,
-    ovr_from_attributes, position_weights, primary_position,
+    ovr_from_attributes, position_weights, primary_position, weight_importance,
 };
 
 /// One attribute a position cannot do without, and the player's value in it.
@@ -27,6 +27,9 @@ pub struct KeyAttribute {
 pub struct AttributeWeight {
     pub attribute: AttributeKey,
     pub weight: u8,
+    /// How much it counts there in three steps (`player_rating::weight_importance`), 1 to 3 for an
+    /// attribute the position weighs: what the profile's dots show.
+    pub importance: u8,
 }
 
 /// The player at one position.
@@ -136,6 +139,7 @@ pub fn weights_of(position: &Position) -> Vec<AttributeWeight> {
         .map(|(attribute, weight)| AttributeWeight {
             attribute: *attribute,
             weight: *weight,
+            importance: weight_importance(*weight),
         })
         .collect()
 }
@@ -461,6 +465,7 @@ mod tests {
                 .map(|(attribute, weight)| AttributeWeight {
                     attribute: *attribute,
                     weight: *weight,
+                    importance: weight_importance(*weight),
                 })
                 .collect();
             assert_eq!(

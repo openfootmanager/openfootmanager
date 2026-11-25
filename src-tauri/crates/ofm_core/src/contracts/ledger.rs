@@ -5,8 +5,8 @@
 //! contract entry looks like. The ledger itself, and the rule that the current
 //! contract is its latest entry, live in `domain::contract_ledger`.
 
-use super::{expected_contract_years, expected_wage};
-use chrono::{Months, NaiveDate};
+use super::{contract_end_after, expected_contract_years, expected_wage};
+use chrono::NaiveDate;
 use domain::contract_ledger::{ContractRecord, ContractSource};
 use domain::player::{Player, PlayerMovementEntry, PlayerMovementKind};
 use domain::team::Team;
@@ -76,7 +76,7 @@ pub(crate) fn standard_contract_terms(
     } else {
         expected_wage(player, buying_club, today)
     };
-    let end = today.checked_add_months(Months::new(expected_contract_years(player, today) * 12))?;
+    let end = contract_end_after(today, expected_contract_years(player, today))?;
     Some((wage, end))
 }
 
@@ -152,16 +152,113 @@ mod tests {
         assert!(wage > 0, "a zero offered wage must never become his pay");
     }
 
+    /// Given players aged 26, 30 and 36 in August 2026
+    /// When their buying club offers standard terms
+    /// Then age chooses three, two or one year, all ending on 30 June.
     #[test]
     fn the_length_follows_the_age_the_renewal_model_uses() {
         let today = day(2026, 8, 1);
         for (born, end) in [
-            ("2000-01-01", day(2029, 8, 1)), // 26: three years
-            ("1996-01-01", day(2028, 8, 1)), // 30: two years
-            ("1990-01-01", day(2027, 8, 1)), // 36: one year
+            ("2000-01-01", day(2029, 6, 30)), // 26: three years
+            ("1996-01-01", day(2028, 6, 30)), // 30: two years
+            ("1990-01-01", day(2027, 6, 30)), // 36: one year
         ] {
             let (_, got) = standard_contract_terms(&player(born), &club(), today, 0).unwrap();
             assert_eq!(got, end, "born {born}");
         }
+    }
+    /// Given a three-year signing on 29 june 2026
+    /// When the buying club offers standard terms
+    /// Then the deal ends on 30 June 2029, regardless of the signing month.
+    #[test]
+    fn a_contract_signed_on_29_june_ends_on_30_june() {
+        let (_, end) =
+            standard_contract_terms(&player("2000-01-01"), &club(), day(2026, 6, 29), 0).unwrap();
+        assert_eq!(end, day(2029, 6, 30));
+    }
+
+    /// Given a three-year signing on 30 june 2026
+    /// When the buying club offers standard terms
+    /// Then the deal ends on 30 June 2029, regardless of the signing month.
+    #[test]
+    fn a_contract_signed_on_30_june_ends_on_30_june() {
+        let (_, end) =
+            standard_contract_terms(&player("2000-01-01"), &club(), day(2026, 6, 30), 0).unwrap();
+        assert_eq!(end, day(2029, 6, 30));
+    }
+
+    /// Given a three-year signing on 1 july 2026
+    /// When the buying club offers standard terms
+    /// Then the deal ends on 30 June 2029, regardless of the signing month.
+    #[test]
+    fn a_contract_signed_on_1_july_ends_on_30_june() {
+        let (_, end) =
+            standard_contract_terms(&player("2000-01-01"), &club(), day(2026, 7, 1), 0).unwrap();
+        assert_eq!(end, day(2029, 6, 30));
+    }
+
+    /// Given a three-year signing on 31 december 2026
+    /// When the buying club offers standard terms
+    /// Then the deal ends on 30 June 2029, regardless of the signing month.
+    #[test]
+    fn a_contract_signed_on_31_december_ends_on_30_june() {
+        let (_, end) =
+            standard_contract_terms(&player("2000-01-01"), &club(), day(2026, 12, 31), 0).unwrap();
+        assert_eq!(end, day(2029, 6, 30));
+    }
+
+    /// Given a three-year signing on 1 january 2026
+    /// When the buying club offers standard terms
+    /// Then the deal ends on 30 June 2029, regardless of the signing month.
+    #[test]
+    fn a_contract_signed_on_1_january_ends_on_30_june() {
+        let (_, end) =
+            standard_contract_terms(&player("2000-01-01"), &club(), day(2026, 1, 1), 0).unwrap();
+        assert_eq!(end, day(2029, 6, 30));
+    }
+    /// Given a June 2027 contract in August 2026
+    /// When a caller tries to apply a one-year renewal directly
+    /// Then the writer refuses before changing any player state.
+    #[test]
+    fn the_renewal_writer_refuses_an_unchanged_end_without_mutation() {
+        let mut player = player("1990-01-01");
+        player.stage_contract_end(Some("2027-06-30".to_string()));
+        let before = serde_json::to_value(&player).unwrap();
+        let result = crate::contracts::apply_agreed_renewal(
+            &mut player,
+            &club(),
+            20_000,
+            1,
+            day(2026, 8, 1),
+            crate::contracts::RenewalAgreedBy::Assistant,
+        );
+        assert_eq!(
+            result,
+            Err("be.error.contracts.renewalDoesNotExtend".to_string())
+        );
+        assert_eq!(serde_json::to_value(&player).unwrap(), before);
+    }
+
+    /// Given a June 2030 contract in August 2026
+    /// When a caller tries to apply a two-year renewal directly
+    /// Then the writer refuses a shortened deal without changing player state.
+    #[test]
+    fn the_renewal_writer_refuses_an_earlier_end_without_mutation() {
+        let mut player = player("1990-01-01");
+        player.stage_contract_end(Some("2030-06-30".to_string()));
+        let before = serde_json::to_value(&player).unwrap();
+        let result = crate::contracts::apply_agreed_renewal(
+            &mut player,
+            &club(),
+            20_000,
+            2,
+            day(2026, 8, 1),
+            crate::contracts::RenewalAgreedBy::Manager { round: 1 },
+        );
+        assert_eq!(
+            result,
+            Err("be.error.contracts.renewalDoesNotExtend".to_string())
+        );
+        assert_eq!(serde_json::to_value(&player).unwrap(), before);
     }
 }

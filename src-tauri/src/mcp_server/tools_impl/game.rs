@@ -245,7 +245,10 @@ pub fn game_export_world_safe(ctx: Arc<McpContext>) -> Result<WorldExported, Str
 
 // ─── game_delete_save ───────────────────────────────────────────────────────
 
-pub fn game_delete_save(ctx: Arc<McpContext>, save_id: String) -> Result<SaveDeleted, String> {
+pub fn game_delete_save<R: tauri::Runtime>(
+    ctx: Arc<McpContext<R>>,
+    save_id: String,
+) -> Result<SaveDeleted, String> {
     // Prevent deleting the currently active save
     if let Some(active_id) = ctx.state_manager.get_save_id() {
         if active_id == save_id {
@@ -258,7 +261,12 @@ pub fn game_delete_save(ctx: Arc<McpContext>, save_id: String) -> Result<SaveDel
         .0
         .lock()
         .map_err(|_| crate::SAVE_MANAGER_UNAVAILABLE_ERROR.to_string())?;
-    sm.delete_save(&save_id)?;
+    let deleted =
+        crate::commands::game::delete_save_internal(&ctx.state_manager, &mut sm, &save_id)?;
+    if !deleted {
+        return Err("be.error.saveNotFound".to_string());
+    }
+    drop(sm);
 
     {
         use tauri::Emitter;
@@ -285,4 +293,117 @@ pub fn game_list_world_databases(ctx: Arc<McpContext>) -> Result<WorldDatabases,
             })
             .collect(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::mcp_server::config::{McpConfig, McpMode};
+    use chrono::DateTime;
+    use ofm_core::clock::GameClock;
+    use ofm_core::game::Game;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use tauri::Listener;
+
+    fn context(
+        app: &tauri::App<tauri::test::MockRuntime>,
+        save_manager: db::save_manager::SaveManager,
+    ) -> Arc<McpContext<tauri::test::MockRuntime>> {
+        Arc::new(McpContext {
+            state_manager: Arc::new(ofm_core::state::StateManager::new()),
+            save_manager_state: Arc::new(crate::SaveManagerState(std::sync::Mutex::new(
+                save_manager,
+            ))),
+            app_handle: app.handle().clone(),
+            config: McpConfig {
+                port: 0,
+                mode: McpMode::Sandbox,
+                disabled_tools: Vec::new(),
+                auto_start: None,
+                no_gui: true,
+                min_tick_delay_ms: 0,
+                auto_save_interval_days: 0,
+                manager_name: None,
+                manager_last_name: None,
+                manager_nationality: None,
+                allowed_hosts: Vec::new(),
+                dev_full_state: false,
+            },
+        })
+    }
+
+    fn save_manager_in(directory: &std::path::Path) -> db::save_manager::SaveManager {
+        db::save_manager::SaveManager::init(directory).expect("save manager")
+    }
+
+    fn create_save(save_manager: &mut db::save_manager::SaveManager) -> String {
+        let manager = domain::manager::Manager::new(
+            "manager-1".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1990-01-01".to_string(),
+            "ENG".to_string(),
+        );
+        let start_date = DateTime::parse_from_rfc3339("2026-01-01T00:00:00Z")
+            .expect("fixed test date")
+            .with_timezone(&chrono::Utc);
+        let game = Game::new(
+            GameClock::new(start_date),
+            manager,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
+        save_manager
+            .create_save(&game, "Test save")
+            .expect("create test save")
+    }
+
+    /// Given a save manager without `missing`, when MCP deletion is requested, then it refuses and emits no change event.
+    #[test]
+    fn a_missing_save_is_not_reported_as_deleted() {
+        let directory = tempfile::tempdir().expect("temporary save directory");
+        let save_manager = save_manager_in(directory.path());
+        let app = tauri::test::mock_app();
+        let event_count = Arc::new(AtomicUsize::new(0));
+        let observed_count = Arc::clone(&event_count);
+        let listener = app.handle().listen("game-state-changed", move |_| {
+            observed_count.fetch_add(1, Ordering::SeqCst);
+        });
+        let result = game_delete_save(context(&app, save_manager), "missing".to_string());
+        app.handle().unlisten(listener);
+
+        assert!(matches!(result, Err(error) if error == "be.error.saveNotFound"));
+        assert_eq!(event_count.load(Ordering::SeqCst), 0);
+    }
+
+    /// Given an existing saved game, when MCP deletion is requested, then the save is removed and a change event is emitted.
+    #[test]
+    fn an_existing_save_is_deleted_and_notifies_the_game() {
+        let directory = tempfile::tempdir().expect("temporary save directory");
+        let mut save_manager = save_manager_in(directory.path());
+        let save_id = create_save(&mut save_manager);
+        let app = tauri::test::mock_app();
+        let event_count = Arc::new(AtomicUsize::new(0));
+        let observed_count = Arc::clone(&event_count);
+        let listener = app.handle().listen("game-state-changed", move |_| {
+            observed_count.fetch_add(1, Ordering::SeqCst);
+        });
+        let context = context(&app, save_manager);
+
+        let result = game_delete_save(Arc::clone(&context), save_id.clone());
+        app.handle().unlisten(listener);
+
+        assert_eq!(result.expect("existing save deletion").save_id, save_id);
+        assert!(context
+            .save_manager_state
+            .0
+            .lock()
+            .expect("save manager lock")
+            .load_saves()
+            .expect("load saves")
+            .is_empty());
+        assert_eq!(event_count.load(Ordering::SeqCst), 1);
+    }
 }

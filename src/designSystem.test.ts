@@ -9,10 +9,17 @@ import { describe, expect, it } from "vitest";
  */
 const FINISHED_FOLDERS = [
   "./components/ui/",
+  // The whole player profile: its dialogs, banners, scout button and stat tile, the Career and
+  // Contract tabs, and everything else under the folder. A file added there is checked from the
+  // first commit.
+  "./components/playerProfile/",
   // The dashboard shell. The rest of components/dashboard (its modals) joins with them, and these
   // four entries become the one folder.
   "./components/dashboard/DashboardAlerts.tsx",
   "./components/dashboard/DashboardHeader.tsx",
+  // The header's search and the class names it shares with the header.
+  "./components/dashboard/DashboardSearch.tsx",
+  "./components/dashboard/dashboardStyles.ts",
   "./components/dashboard/DashboardSidebar.tsx",
   "./components/dashboard/DashboardWorkspaceContent.tsx",
   "./pages/Dashboard.tsx",
@@ -34,6 +41,9 @@ const FINISHED_FOLDERS = [
   // are redrawn.
   "./components/squad/SquadCardsView.tsx",
   "./components/squad/SquadCardGrid.tsx",
+  // The World Editor's home (the approved sidebar and library, 10 Nov 2026). The editor's own screens
+  // and the new-world form join with their redesign.
+  "./components/worldEditor/home/",
   // Choose your club (team selection A, approved 10 Nov 2026): the page and its stepper, rail,
   // table and chosen-club card. The simulation settings it opens are the dialog's slice, T3.
   "./pages/TeamSelection.tsx",
@@ -51,11 +61,17 @@ const ARTWORK_FILES: Record<string, string> = {
   "./components/ui/JerseyIcon.tsx": "paints a club's kit, with shading over the kit colours",
 };
 
-const SOURCES = import.meta.glob(["./**/*.{ts,tsx}", "!./**/*.test.{ts,tsx}"], {
-  query: "?raw",
-  import: "default",
-  eager: true,
-}) as Record<string, string>;
+// The rules police what ships. A `*.harness.*` or `*.mocks.*` file is test-only support (its
+// fixtures carry a club's colours as data, as a test of the screen must), imported by `*.test.*`
+// files and by nothing in production, so it is read like a test, not like a screen.
+const SOURCES = import.meta.glob(
+  ["./**/*.{ts,tsx}", "!./**/*.test.{ts,tsx}", "!./**/*.{harness,mocks}.{ts,tsx}"],
+  {
+    query: "?raw",
+    import: "default",
+    eager: true,
+  },
+) as Record<string, string>;
 
 /** Source with comments blanked out, keeping line numbers. URLs inside strings survive. */
 function withoutComments(source: string): string {

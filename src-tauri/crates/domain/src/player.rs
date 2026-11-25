@@ -1,3 +1,4 @@
+use crate::career_stints::SeasonStints;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -79,6 +80,13 @@ pub struct Player {
 
     // Career history
     pub career: Vec<CareerEntry>,
+    /// The season in progress split by club, closed at every move and resolved into `career` rows
+    /// at the rollover. It is saved in its own SQLite column (`player_repo`), not through this
+    /// serializer, and no screen reads it: like the archives on `Game`, the wire never carries it,
+    /// so the TypeScript type and the JSON agree. A JSON player (a legacy save) has none.
+    #[serde(skip)]
+    #[ts(skip)]
+    pub season_stints: SeasonStints,
     /// Every move and every contract. Flattened so the wire and the saves keep their
     /// keys: it reads and writes `movement_history`, `wage`, `contract_start` and
     /// `contract_end` itself.
@@ -658,7 +666,7 @@ pub struct PlayerSeasonStats {
     pub fouls_committed: u32,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 pub struct CareerEntry {
     pub season: u32,
     pub team_id: String,
@@ -666,6 +674,20 @@ pub struct CareerEntry {
     pub appearances: u32,
     pub goals: u32,
     pub assists: u32,
+    // The three days below are `YYYY-MM-DD`, the format of a movement's `date`. A row from before
+    // they were kept has none, and a package's rows need not carry them (#1402); `None` is left
+    // out of the file, so exports and the editor's files hold no nulls.
+    //
+    // The day he arrived at the club for this stint; `None` when he was there as the season began.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from: Option<String>,
+    // The day he left the club; `None` while he was there at the season's end.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub until: Option<String>,
+    // The day the season's stats began counting (the real reset, which is not always the
+    // calendar's start); the same on every row of one season.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub season_began_on: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
@@ -683,6 +705,22 @@ pub enum PlayerMovementKind {
     /// The contract in force when a career opened, or made from a save that
     /// predates the ledger.
     InitialContract,
+}
+
+impl PlayerMovementKind {
+    /// Whether the club he plays for changes with this movement. A loan's purchase makes the
+    /// borrower his owner without moving him, and a renewal, a retirement and an opening
+    /// contract do not move him either.
+    pub fn changes_where_he_plays(&self) -> bool {
+        matches!(
+            self,
+            Self::PermanentTransfer
+                | Self::LoanStart
+                | Self::LoanReturn
+                | Self::FreeAgentSigning
+                | Self::Released
+        )
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
@@ -953,6 +991,20 @@ pub fn compute_traits(attrs: &PlayerAttributes, _position: &Position) -> Vec<Pla
 }
 
 impl Player {
+    /// This season's totals in the division `division_id` alone, as that division's tables and
+    /// awards count them: its own matches, not a cup run or another competition. `None` when he has
+    /// played none of its matches.
+    pub fn division_stats(&self, division_id: &str) -> Option<&PlayerSeasonStats> {
+        self.league_stats_by_competition.get(division_id)
+    }
+
+    /// Starts his season totals over: the totals, and the split of them by club, which means
+    /// nothing against fresh totals. The one place both are cleared together.
+    pub fn reset_season_totals(&mut self) {
+        self.stats = PlayerSeasonStats::default();
+        self.season_stints = SeasonStints::default();
+    }
+
     pub fn new(
         id: String,
         match_name: String,
@@ -994,6 +1046,7 @@ impl Player {
             stats: PlayerSeasonStats::default(),
             league_stats_by_competition: Default::default(),
             career: Vec::new(),
+            season_stints: Default::default(),
             movement_history: Default::default(),
             training_focus: None,
             transfer_listed: false,

@@ -5,6 +5,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { i18nReady } from "../../i18n";
 import type { GameStateData, PlayerData } from "../../store/gameStore";
 import { createPlayer, createSeasonContext, createTeam } from "../../test-utils/factories";
+import { getRoleOptions } from "../../lib/playerRoles";
+import { naturalPositionOf } from "../../lib/positions";
 import PlayerProfile from "./PlayerProfile";
 
 // The shell of the profile: the name card above four tabs. What each tab holds is the business of the
@@ -161,16 +163,18 @@ describe("PlayerProfile shell", () => {
   /**
    * Given the profile of a player of the manager's own club
    * When it opens
-   * Then condition, morale, value and wage are each on the page once: the name card carries no
-   *      band of them, and the Contract tab holds them (the Overview takes them in a later slice)
+   * Then condition, morale and value are each on the page once (the name card carries no band of
+   *      them), and the wage twice: on the Overview's details, and in the Contract tab's contract
+   *      card, where the decision sheet (board "Contract A") puts it beside the contract it is paid
+   *      under
    */
-  it("shows condition, morale, value and wage once each", () => {
+  it("shows condition, morale and value once each, and the wage on the Overview and the contract card", () => {
     renderProfile();
 
     expect(screen.getAllByText("Condition")).toHaveLength(1);
     expect(screen.getAllByText("Morale")).toHaveLength(1);
     expect(screen.getAllByText(/^(Value|Market Value)$/)).toHaveLength(1);
-    expect(screen.getAllByText(/^(Wage|Weekly Wage)$/)).toHaveLength(1);
+    expect(screen.getAllByText(/^(Wage|Weekly Wage)$/)).toHaveLength(2);
   });
 
   /**
@@ -314,5 +318,52 @@ describe("PlayerProfile shell", () => {
     expect(within(card).getByRole("button", { name: "Alpha FC" })).toBeInTheDocument();
     expect(within(card).getByRole("button", { name: /actions/i })).toBeInTheDocument();
     expect(within(card).getByText("Overall")).toBeInTheDocument();
+  });
+
+  /**
+   * Given the club's own player, on the Overview
+   * When his tactical role is changed in Now
+   * Then the backend is asked to set that role for him
+   */
+  it("sets the own player's tactical role from the Overview", async () => {
+    const player = createPlayer({ id: "player-1", team_id: "team-1" });
+    // The roles the select offers for him, in its order; the last is not his current "Standard".
+    const roles = getRoleOptions(naturalPositionOf(player), "Standard");
+    const chosen = roles[roles.length - 1];
+    expect(chosen).not.toBe("Standard");
+    renderProfile();
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Role" }));
+    fireEvent.click(screen.getAllByRole("option")[roles.length - 1]);
+
+    await vi.waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith(
+        "set_player_role",
+        expect.objectContaining({ playerId: "player-1", role: chosen }),
+      ),
+    );
+  });
+
+  /**
+   * Given a free agent the manager could sign, on the Contract tab
+   * When "Offer Contract" is pressed
+   * Then the free-agent contract dialog opens
+   */
+  it("opens the free-agent contract dialog from the Contract tab", () => {
+    const player = createPlayer({ id: "player-9", team_id: null });
+    render(
+      <PlayerProfile
+        player={player}
+        gameState={gameWith(player)}
+        isOwnClub={false}
+        onGameUpdate={() => {}}
+        onSelectTeam={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByRole("tab", { name: "Contract" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Offer Contract" }));
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 });

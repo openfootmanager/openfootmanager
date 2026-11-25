@@ -23,7 +23,7 @@ use domain::team::Team;
 use crate::contract_wage_policy::wage_policy_verdict;
 use crate::contracts::{
     RenewalDecision, RenewalOffer, apply_agreed_renewal, evaluate_renewal_offer,
-    expected_contract_years, expected_wage, next_renewal_round, remaining_contract_days,
+    expected_renewal_years, expected_wage, next_renewal_round, remaining_contract_days,
 };
 use crate::game::Game;
 use crate::squad_floor::{
@@ -252,9 +252,12 @@ fn squad_median_ovr(game: &Game, team_id: &str) -> u8 {
 /// takes it put it into effect.
 fn renew(game: &mut Game, team: &Team, player_index: usize, current_date: NaiveDate) {
     let player = &game.players[player_index];
+    let Some(contract_years) = expected_renewal_years(player, current_date) else {
+        return;
+    };
     let offer = RenewalOffer {
         weekly_wage: expected_wage(player, team, current_date),
-        contract_years: expected_contract_years(player, current_date),
+        contract_years,
     };
     if !wage_policy_verdict(game, team, player, offer.weekly_wage).permits() {
         return;
@@ -452,6 +455,9 @@ mod tests {
             .to_string()
     }
 
+    /// Given a 27-year-old key AI player approaching expiry in August 2026
+    /// When the club renews him on its review day
+    /// Then his three-year contract ends on 30 June 2029.
     #[test]
     fn a_good_player_running_down_his_contract_is_renewed_on_the_review_day() {
         let mut game = world();
@@ -467,6 +473,7 @@ mod tests {
         );
         // An AI renewal goes through the one renewal writer, so it is in his history.
         let star = game.players.iter().find(|p| p.id == "star").unwrap();
+        assert_eq!(star.contract_end(), Some("2029-06-30"));
         let entry = star
             .movement_history
             .last()
@@ -850,7 +857,9 @@ mod tests {
     }
 
     /// Given an AI club with exactly two senior keepers, no academy keeper, and
-    /// a free-agent keeper within its wage policy, he is signed.
+    /// a free-agent keeper within its wage policy
+    /// When the club plans its squad
+    /// Then he is signed until 30 June 2029.
     #[test]
     fn an_ai_club_at_the_floor_signs_a_free_agent_it_can_afford() {
         let mut game = world();
@@ -862,6 +871,7 @@ mod tests {
 
         assert_eq!(club_of(&game, "free_keeper"), Some("ai"));
         let keeper = game.players.iter().find(|p| p.id == "free_keeper").unwrap();
+        assert_eq!(keeper.contract_end(), Some("2029-06-30"));
         let entry = keeper
             .movement_history
             .last()
@@ -1102,5 +1112,19 @@ mod tests {
         apply_ai_contract_decisions(&mut game, review_day());
 
         assert_eq!(contract_end(&game, "old_keeper"), before);
+    }
+    /// Given a needed veteran keeper contracted until June 2027 in December 2026
+    /// When his AI club reviews renewals within its normal renewal horizon
+    /// Then it chooses two years and records June 2028, rather than the same end.
+    #[test]
+    fn an_ai_renewal_chooses_the_shortest_length_that_extends() {
+        let mut game = world();
+        game.clock.current_date = Utc.with_ymd_and_hms(2026, 12, 31, 12, 0, 0).unwrap();
+        game.players.retain(|p| p.id != "ai_Goalkeeper2");
+        let mut keeper = player("old_keeper", "ai", Position::Goalkeeper, 50, 36, 90);
+        keeper.stage_contract_end(Some("2027-06-30".to_string()));
+        game.players.push(keeper);
+        apply_ai_contract_decisions(&mut game, review_day());
+        assert_eq!(contract_end(&game, "old_keeper"), "2028-06-30");
     }
 }

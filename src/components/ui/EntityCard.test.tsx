@@ -42,6 +42,26 @@ describe("EntityCard", () => {
   });
 
   /**
+   * Given a full card with a footer, and a compact one with the same footer
+   * When they are drawn
+   * Then the full card ends with the footer's band, after the status and the facts, and the compact
+   *      card draws none of it (it is the identity row alone).
+   */
+  it("draws a footer at the foot of a full card only", () => {
+    const { unmount } = renderCard({ footer: <button type="button">Manage Gonzalez</button> });
+    const card = screen.getByRole("article", { name: "Gonzalez" });
+    const footer = within(card).getByRole("button", { name: "Manage Gonzalez" });
+    expect(card.lastElementChild).toContainElement(footer);
+    expect(card.querySelector("dl")?.compareDocumentPosition(footer)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    unmount();
+
+    renderCard({ size: "compact", footer: <button type="button">Manage Gonzalez</button> });
+    expect(screen.queryByRole("button", { name: "Manage Gonzalez" })).toBeNull();
+  });
+
+  /**
    * Given a player's card
    * When it is drawn
    * Then it is an article named for him, whose name is the button that opens his profile; the

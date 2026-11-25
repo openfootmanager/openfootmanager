@@ -550,6 +550,13 @@ impl LiveMatchState {
         self.sent_off.insert(player_id.to_string());
     }
 
+    /// Put the match in `phase` without playing to it. For tests of what a caller does at a phase
+    /// that a seed rarely reaches (the extra-time interval needs a drawn knockout tie).
+    #[doc(hidden)]
+    pub fn test_set_phase(&mut self, phase: MatchPhase) {
+        self.phase = phase;
+    }
+
     /// Put a scoreline on the board without playing the match that produced it.
     ///
     /// For tests about what a manager does when he is two down with twenty

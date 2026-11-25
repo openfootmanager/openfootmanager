@@ -398,27 +398,60 @@ describe("mergeFallbackLeague", () => {
 });
 
 describe("entityRowKey", () => {
-  it("uses the id when there is one", () => {
-    expect(entityRowKey("fc-test", 3)).toBe("fc-test");
+  /**
+   * Given an entity with an id
+   * When its row is keyed
+   * Then the key follows the id, wherever the row sits
+   */
+  it("is stable for an id, whatever else is in the list", () => {
+    expect(entityRowKey({ id: "fc-test" })).toBe(entityRowKey({ id: "fc-test" }));
+    expect(entityRowKey({ id: "fc-test" })).not.toBe(entityRowKey({ id: "fc-other" }));
   });
 
-  it("keeps the key stable when the row moves", () => {
-    // The point of keying by id: an insert above shifts every index, and the
-    // row's delete-confirmation state must stay with the row that owns it.
-    expect(entityRowKey("fc-test", 0)).toBe(entityRowKey("fc-test", 7));
+  /**
+   * Given an imported record whose id is literally the key a blank-id row would be given
+   * When both rows are keyed
+   * Then they still get different keys: one React and focus identity per row
+   */
+  it("keeps an imported id that looks like a generated key apart from a blank-id row", () => {
+    const blank = { id: "" };
+    const generated = entityRowKey(blank);
+
+    expect(entityRowKey({ id: generated })).not.toBe(generated);
   });
 
+  /**
+   * Given a package that arrives with several blank ids
+   * When their rows are keyed
+   * Then each gets its own key, or one row's state would show on another
+   */
   it("gives entities without an id distinct keys", () => {
-    // A package can arrive with several ids blank, and repairing one is exactly
-    // what the editor is for; identical keys would let one row's state show on
-    // another.
-    expect(entityRowKey("", 0)).not.toBe(entityRowKey("", 1));
+    expect(entityRowKey({ id: "" })).not.toBe(entityRowKey({ id: "" }));
   });
 
+  /**
+   * Given a blank-id record in a list
+   * When rows are inserted or removed above it (an undo) and it is keyed again
+   * Then it keeps the key it had: the key follows the record, not its index
+   */
+  it("keeps a blank-id record's key when the rows above it change", () => {
+    const first = { id: "" };
+    const second = { id: "" };
+    const keyBefore = entityRowKey(second);
+
+    const after = [first, second].filter((row) => row !== first);
+
+    expect(entityRowKey(after[0])).toBe(keyBefore);
+  });
+
+  /**
+   * Given a generated id
+   * When it is compared with a blank-id fallback key
+   * Then they cannot collide: toSlug strips everything outside [a-z0-9-], so no generated id can
+   *      begin with the fallback's "#"
+   */
   it("cannot collide with a generated id", () => {
-    // toSlug strips everything outside [a-z0-9-], so no auto-generated id can
-    // begin with the fallback's "#".
-    expect(entityRowKey("", 0).startsWith("#")).toBe(true);
+    expect(entityRowKey({ id: "" }).startsWith("#")).toBe(true);
     expect(toSlug("#row-0")).not.toContain("#");
   });
 });

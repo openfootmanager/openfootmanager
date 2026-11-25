@@ -2,6 +2,7 @@
   "global": [
     "app.name",
     "app.publisher",
+    "tactics.slotSummary",
     "date.day",
     "match.pen",
     "squad.jerseyNumber",
@@ -29,7 +30,9 @@
     "worldEditor.staffId",
     "common.ratingTier.S",
     "common.ratingTier.A",
-    "common.ratingTier.B"
+    "common.ratingTier.B",
+    "playerProfile.contractSheet.lastSignedValue",
+    "playerProfile.contractSheet.range"
   ],
   "de": [
     "teamSelect.simulation",
@@ -151,6 +154,8 @@
     "playerProfile.overview.axes.agility"
   ],
   "fr": [
+    "worldEditor.home.colClubs",
+    "worldEditor.home.colAction",
     "teamSelect.scope.regionMeta",
     "teamSelect.steps.club",
     "teamSelect.simulation",

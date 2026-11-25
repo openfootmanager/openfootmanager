@@ -9,7 +9,7 @@ use crate::turn::matchday_lookups::MatchdayLookups;
 pub use crate::turn::squad::auto_select_set_pieces;
 use crate::turn::squad::{
     admitted_roles_for_formation, build_team_with_bench_from, domain_to_engine_role,
-    domain_to_engine_tactics, engine_line, line_familiarity, set_piece_takers_among,
+    domain_to_engine_tactics, engine_line, line_familiarity, morale_factor, set_piece_takers_among,
     slot_admits_engine_role, slot_at_simulated_line,
 };
 
@@ -408,6 +408,26 @@ impl LiveMatchSession {
                 log::warn!("[live_match] change of shape: {player_id} is not in the match");
             }
         }
+    }
+
+    /// The half-time talk's change of mood reaches the match: each listed player of the user's side
+    /// plays the rest of it at the factor his new morale gives (`turn::squad::morale_factor`, the
+    /// function that built it at kick-off), in the eleven or on the bench. `morales` is what the
+    /// caller knows now, not this session's kick-off copy of the squad. A player of the club who is
+    /// not in the match (the squad is bigger than a match day's) is skipped: that is the common
+    /// case, not a fault. Returns how many players it reached; a session with no user side (a
+    /// match nobody manages) reaches none.
+    pub fn refit_morale(&mut self, morales: &[(String, u8)]) -> usize {
+        let Some(side) = self.user_side else {
+            return 0;
+        };
+        morales
+            .iter()
+            .filter(|(player_id, morale)| {
+                self.match_state
+                    .set_morale_factor(side, player_id, morale_factor(*morale))
+            })
+            .count()
     }
 
     /// Apply the intended role only while the player's current slot admits it.
@@ -1398,5 +1418,125 @@ mod tests {
         assert!(!slot.admits_role(&domain::team::PlayerRole::BoxToBox));
         assert_eq!(team.players[index].role, PlayerRole::Standard);
         assert!(slot.admits_role(&domain::team::PlayerRole::Standard));
+    }
+
+    /// A match stepped to half-time, with the user's side the home side (`user_side`).
+    fn at_half_time() -> super::LiveMatchSession {
+        let mut session = formation_role_fixture();
+        let mut guard = 0;
+        while session.match_state.phase() != engine::MatchPhase::HalfTime {
+            session.step_many(60);
+            guard += 1;
+            assert!(guard < 5, "the match never reached half-time");
+        }
+        session
+    }
+
+    fn home_eleven_ids(session: &super::LiveMatchSession) -> Vec<String> {
+        session
+            .match_state
+            .team(engine::Side::Home)
+            .players
+            .iter()
+            .map(|p| p.id.clone())
+            .collect()
+    }
+
+    /// Given a match at half-time and the user's players' new morale from a team talk
+    /// When the morale is handed to the session
+    /// Then each of them carries the factor that morale gives, and the opponent's players are
+    ///      untouched
+    #[test]
+    fn a_talk_reaches_the_users_players_and_only_them() {
+        let mut session = at_half_time();
+        let away_before: Vec<f64> = session
+            .match_state
+            .team(engine::Side::Away)
+            .players
+            .iter()
+            .map(|p| p.morale_factor)
+            .collect();
+        let morales: Vec<(String, u8)> = home_eleven_ids(&session)
+            .into_iter()
+            .map(|id| (id, 20))
+            .collect();
+
+        let reached = session.refit_morale(&morales);
+
+        assert_eq!(reached, 11);
+        for player in &session.match_state.team(engine::Side::Home).players {
+            assert_eq!(player.morale_factor, crate::turn::squad::morale_factor(20));
+        }
+        let away_after: Vec<f64> = session
+            .match_state
+            .team(engine::Side::Away)
+            .players
+            .iter()
+            .map(|p| p.morale_factor)
+            .collect();
+        assert_eq!(away_after, away_before);
+    }
+
+    /// Given a talk that moved the whole club's morale, including players who are not in the match
+    /// When the morale is handed to the session
+    /// Then the players in the match are refitted and the others are skipped without a fault
+    #[test]
+    fn a_player_who_is_not_in_the_match_is_skipped() {
+        let mut session = at_half_time();
+        let mut morales: Vec<(String, u8)> = vec![("not-in-the-match".to_string(), 90)];
+        morales.push((home_eleven_ids(&session)[3].clone(), 90));
+
+        let reached = session.refit_morale(&morales);
+
+        assert_eq!(reached, 1);
+    }
+
+    /// Given a match nobody manages (no user side)
+    /// When morale is handed to it
+    /// Then nobody is refitted
+    #[test]
+    fn a_match_nobody_manages_takes_no_morale() {
+        let mut session = at_half_time();
+        session.user_side = None;
+        let morales: Vec<(String, u8)> = home_eleven_ids(&session)
+            .into_iter()
+            .map(|id| (id, 0))
+            .collect();
+
+        assert_eq!(session.refit_morale(&morales), 0);
+    }
+
+    /// Given two identical matches at half-time, one whose users' players are lifted to the top
+    ///       of the morale scale by a talk and one whose players are dropped to the bottom
+    /// When both are played out
+    /// Then the second halves differ: the talk can change the second half (#1213). The talk's own
+    ///      effect is at most 0.72% a player; the two extremes are used here so that one seed
+    ///      shows a difference.
+    #[test]
+    fn two_identical_second_halves_differ_when_one_side_took_a_talk() {
+        let play_second_half = |morale: u8| {
+            let mut session = at_half_time();
+            let morales: Vec<(String, u8)> = home_eleven_ids(&session)
+                .into_iter()
+                .map(|id| (id, morale))
+                .collect();
+            session.refit_morale(&morales);
+            format!("{:?}", session.run_to_completion())
+        };
+
+        assert_ne!(play_second_half(100), play_second_half(0));
+    }
+
+    /// Given the same half-time and no talk at all (every factor as kick-off built it)
+    /// When the second half is played twice
+    /// Then it is the same: nothing here is random between two runs of one seed
+    #[test]
+    fn a_second_half_without_a_talk_is_reproducible() {
+        let play = || {
+            let mut session = at_half_time();
+            format!("{:?}", session.run_to_completion())
+        };
+
+        assert_eq!(play(), play());
     }
 }

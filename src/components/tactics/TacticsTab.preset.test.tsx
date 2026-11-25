@@ -1,13 +1,20 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { useState } from "react";
+import { StrictMode } from "react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { invoke } from "@tauri-apps/api/core";
 import { i18nReady } from "../../i18n";
-import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
-import TacticsTab from "./TacticsTab";
 import { resetTacticsLineupCache } from "../../hooks/useTacticsLineupProjection";
-import type { CustomTactic } from "../../services/customTacticsService";
-import { createSeasonContext } from "../../test-utils/factories";
+import {
+  commandsCalled,
+  ControlledTacticsTab,
+  fakeBackend,
+  knobs,
+  mockedInvoke,
+  openActionsMenu,
+  openPhaseBlueprint,
+  resetHarness,
+  seedSavedTactics,
+} from "./TacticsTab.harness";
+import type { PlayerData } from "../../store/gameStore";
 
 /**
  * #365 — picking a tactic preset asks the backend for the whole preset
@@ -18,14 +25,9 @@ import { createSeasonContext } from "../../test-utils/factories";
  * game the (faked) backend returns.
  */
 
-// The players the backend's familiarity grades, and whether it has arrived (every player built here).
-const familiarityState = vi.hoisted(() => ({
-  arrived: true,
-  players: new Map<string, unknown>(),
-}));
-
 vi.mock("../../hooks/useFamiliarity", async () => {
   const { cannedFamiliarityModule } = await import("../../test-utils/familiarity");
+  const { familiarityState } = await import("../../test-utils/tacticsFamiliarityState");
   return cannedFamiliarityModule(
     (playerId) => familiarityState.players.get(playerId) as PlayerData | undefined,
     () => familiarityState.arrived,
@@ -38,218 +40,6 @@ vi.mock("../../hooks/usePositionGroups", async () => {
 });
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
-const mockedInvoke = vi.mocked(invoke);
-
-const buildPlayer = (id: string, position: string): PlayerData => ({
-  id,
-  match_name: id.toUpperCase(),
-  full_name: `Player ${id}`,
-  date_of_birth: "1998-01-01",
-  nationality: "GB",
-  position,
-  natural_position: position,
-  alternate_positions: [],
-  training_focus: null,
-  attributes: {
-    pace: 60,
-    stamina: 60,
-    strength: 60,
-    agility: 60,
-    passing: 60,
-    shooting: 60,
-    tackling: 60,
-    dribbling: 60,
-    defending: 60,
-    positioning: 60,
-    vision: 60,
-    decisions: 60,
-    composure: 60,
-    aggression: 60,
-    teamwork: 60,
-    leadership: 60,
-    handling: 60,
-    reflexes: 60,
-    aerial: 60,
-  },
-  condition: 100,
-  morale: 80,
-  injury: null,
-  team_id: "team1",
-  retired: false,
-  contract_end: "2027-06-30",
-  wage: 1000,
-  market_value: 100000,
-  stats: {
-    appearances: 0,
-    goals: 0,
-    assists: 0,
-    clean_sheets: 0,
-    yellow_cards: 0,
-    red_cards: 0,
-    avg_rating: 0,
-    minutes_played: 0,
-  },
-  career: [],
-  transfer_listed: false,
-  loan_listed: false,
-  transfer_offers: [],
-  traits: [],
-});
-
-const makePlayer = (...args: Parameters<typeof buildPlayer>): PlayerData => {
-  const player = buildPlayer(...args);
-  // The backend would grade him; the stand-in finds him here.
-  familiarityState.players.set(player.id, player);
-  return player;
-};
-
-const makeTeam = (): TeamData => ({
-  id: "team1",
-  name: "Test FC",
-  short_name: "TFC",
-  country: "England",
-  city: "Test City",
-  stadium_name: "Test Ground",
-  stadium_capacity: 20000,
-  finance: 1000000,
-  manager_id: "mgr1",
-  reputation: 50,
-  wage_budget: 100000,
-  transfer_budget: 500000,
-  season_income: 0,
-  season_expenses: 0,
-  formation: "4-4-2",
-  play_style: "Balanced",
-  training_focus: "General",
-  training_intensity: "Balanced",
-  training_schedule: "Balanced",
-  founded_year: 1900,
-  colors: { primary: "#00ff00", secondary: "#ffffff" },
-  starting_xi_ids: ["gk1", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
-  form: [],
-  history: [],
-});
-
-const makeGame = (): GameStateData => ({
-  season_context: createSeasonContext(),
-  clock: { current_date: "2026-08-01", start_date: "2026-08-01" },
-  manager: {
-    display_name: "Test Manager",
-    id: "mgr1",
-    first_name: "Test",
-    last_name: "Manager",
-    date_of_birth: "1980-01-01",
-    nationality: "GB",
-    reputation: 50,
-    satisfaction: 50,
-    fan_approval: 50,
-    team_id: "team1",
-    career_stats: {
-      matches_managed: 0,
-      wins: 0,
-      draws: 0,
-      losses: 0,
-      trophies: 0,
-      best_finish: null,
-    },
-    career_history: [],
-  },
-  teams: [makeTeam()],
-  players: [
-    makePlayer("gk1", "Goalkeeper"),
-    ...["d1", "d2", "d3", "d4"].map((id) => makePlayer(id, "Defender")),
-    ...["m1", "m2", "m3", "m4"].map((id) => makePlayer(id, "Midfielder")),
-    ...["f1", "f2"].map((id) => makePlayer(id, "Forward")),
-  ],
-  staff: [],
-  messages: [],
-  news: [],
-  league: null,
-  scouting_assignments: [],
-  board_objectives: [],
-});
-
-/** The faked backend: applies commands to its own copy and returns it. */
-let backend: GameStateData;
-/** The backend's verdict on whether the phase dials still equal the style's blueprint. */
-let blueprintModified = false;
-/** Commands the faked backend refuses with the career-changed error. */
-let refused = new Set<string>();
-/** The tactics the faked save holds, in the order made. */
-let savedTactics: CustomTactic[] = [];
-
-/** Puts tactics in the faked save, as if the player had made them earlier. */
-function seedSavedTactics(
-  entries: Array<{
-    id: string;
-    name: string;
-    description: string;
-    formation: string;
-    playStyle: string;
-  }>,
-) {
-  savedTactics = entries.map((entry) => ({ ...entry, sourcePresetName: null }));
-}
-
-function fakeBackend(failPreset = false) {
-  mockedInvoke.mockImplementation(async (command: string, args?: unknown) => {
-    const params = (args ?? {}) as Record<string, string>;
-    if (refused.has(command)) throw "be.error.careerChanged";
-    if (command === "get_squad") return backend.players;
-    if (command === "auto_select_set_pieces") {
-      return { captain: "m1", penalty_taker: "f1", free_kick_taker: "m1", corner_taker: "d1" };
-    }
-    if (command === "list_custom_tactics") return structuredClone(savedTactics);
-    if (command === "save_custom_tactic" || command === "save_current_tactic") {
-      const tactic = (args as { tactic: CustomTactic }).tactic;
-      const at = savedTactics.findIndex((saved) => saved.id === tactic.id);
-      if (at === -1) savedTactics.push(tactic);
-      else savedTactics[at] = tactic;
-      return structuredClone(savedTactics);
-    }
-    const team = backend.teams[0];
-    if (command === "get_tactics_blueprint_status") return { modified: blueprintModified };
-    if (command === "set_tactics_phase") {
-      team.tactics_phase = {
-        ...(team.tactics_phase as object),
-        width: params.width,
-      } as TeamData["tactics_phase"];
-      blueprintModified = true;
-    }
-    if (command === "apply_tactic_preset") {
-      if (failPreset) throw new Error("boom");
-      team.formation = params.formation;
-      team.play_style = params.playStyle;
-      // The real command puts the dials back to the style's blueprint.
-      team.tactics_phase = {} as TeamData["tactics_phase"];
-      blueprintModified = false;
-    }
-    if (command === "set_formation") team.formation = params.formation;
-    if (command === "set_play_style") team.play_style = params.playStyle;
-    // As the real command: the saved tactic's formation and style, and nothing else for one saved
-    // before tactics held their contents (these seeds hold none), so the dials stay the manager's.
-    if (command === "apply_custom_tactic") {
-      const saved = savedTactics.find((tactic) => tactic.id === params.id);
-      if (!saved) throw new Error("be.error.customTactic.notFound");
-      team.formation = saved.formation;
-      team.play_style = saved.playStyle;
-    }
-    return structuredClone(backend);
-  });
-}
-
-function ControlledTacticsTab() {
-  const [game, setGame] = useState(() => structuredClone(backend));
-  return <TacticsTab gameState={game} onSelectPlayer={vi.fn()} onGameUpdate={setGame} />;
-}
-
-/** The with-the-ball dials sit in a section of the instructions panel; open it when it is closed. */
-function openPhaseBlueprint() {
-  const toggle = screen.getByRole("button", { name: /With Ball/i });
-  if (toggle.getAttribute("aria-expanded") !== "true") fireEvent.click(toggle);
-}
-
-const commandsCalled = () => mockedInvoke.mock.calls.map(([command]) => command);
 
 // Every case mounts the whole TacticsTab with the real i18n and then drives several controls; that
 // takes 2-5 s on a CI runner under load, and vitest's default 5 s cut-off turned the slowest cases
@@ -266,10 +56,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     localStorage.clear();
     resetTacticsLineupCache();
     mockedInvoke.mockReset();
-    blueprintModified = false;
-    savedTactics = [];
-    refused = new Set();
-    backend = makeGame();
+    resetHarness();
   });
 
   /**
@@ -289,6 +76,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
       expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
         careerToken: 0,
         formation: "3-4-3",
+        keepInstructions: true,
         playStyle: "HighPress",
       });
     });
@@ -297,6 +85,91 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Choose tactic" })).toHaveTextContent("High Press");
     });
+  });
+
+  /**
+   * Given the save has not yet answered the library's first load
+   * When the manager picks a preset (whose Save is always on once the library is there)
+   * Then Save stays disabled, and turns on once the load has answered.
+   */
+  it("keeps Save disabled until the library's first load has answered", async () => {
+    let answerLoad!: () => void;
+    knobs.libraryListGate = new Promise<void>((resolve) => {
+      answerLoad = resolve;
+    });
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+    fireEvent.click(screen.getByRole("option", { name: /High Press/ }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Choose tactic" })).toHaveTextContent("High Press");
+    });
+    expect(screen.getByRole("button", { name: "Save as tactic" })).toBeDisabled();
+
+    answerLoad();
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Save as tactic" })).toBeEnabled(),
+    );
+  });
+
+  /**
+   * Given the screen under StrictMode, which asks for the library twice (two loads queued in order)
+   * When the first load answers while the second is still pending
+   * Then Save stays disabled, and turns on only when the second has answered too.
+   */
+  it("keeps Save disabled until the latest of two overlapping library loads has answered", async () => {
+    knobs.libraryListReleases = [];
+    const releases = knobs.libraryListReleases;
+    fakeBackend();
+    render(
+      <StrictMode>
+        <ControlledTacticsTab />
+      </StrictMode>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+    fireEvent.click(screen.getByRole("option", { name: /High Press/ }));
+    await waitFor(() => expect(releases).toHaveLength(1));
+
+    releases[0]();
+    await waitFor(() => expect(releases).toHaveLength(2));
+
+    expect(screen.getByRole("button", { name: "Save as tactic" })).toBeDisabled();
+    releases[1]();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Save as tactic" })).toBeEnabled(),
+    );
+  });
+
+  /**
+   * Given a first load of the library that fails
+   * When it fails
+   * Then Save turns on (it is how a tactic gets into the save), and a save is accepted.
+   */
+  it("turns Save on when the library's first load fails, and a save then lands", async () => {
+    let answerLoad!: () => void;
+    knobs.libraryListGate = new Promise<void>((resolve) => {
+      answerLoad = resolve;
+    });
+    knobs.libraryListFailsOnce = true;
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+    fireEvent.click(screen.getByRole("option", { name: /High Press/ }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Choose tactic" })).toHaveTextContent("High Press");
+    });
+    expect(screen.getByRole("button", { name: "Save as tactic" })).toBeDisabled();
+
+    answerLoad();
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Save as tactic" })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save as tactic" }));
+    await waitFor(() => expect(commandsCalled()).toContain("save_current_tactic"));
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   /**
@@ -335,7 +208,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
       "a play style",
       "set_play_style",
       async () => {
-        fireEvent.click(screen.getByRole("combobox", { name: "Play Style" }));
+        fireEvent.click(screen.getByRole("combobox", { name: "Play style" }));
         fireEvent.click(screen.getByRole("option", { name: "Counter" }));
       },
     ],
@@ -353,8 +226,8 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
       "a swap of two starters",
       "set_starting_xi",
       async () => {
-        fireEvent.click(await screen.findByTestId("pitch-player-d1"));
-        fireEvent.click(screen.getByTestId("pitch-player-d2"));
+        fireEvent.click(await screen.findByTestId("xi-player-d1"));
+        fireEvent.click(screen.getByTestId("xi-player-d2"));
         fireEvent.click(await screen.findByRole("button", { name: "Confirm swap" }));
       },
     ],
@@ -362,8 +235,10 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
       "a player role",
       "set_player_role",
       async () => {
-        const token = await screen.findByTestId("pitch-player-d1");
-        fireEvent.click(within(token).getByRole("combobox"));
+        const select = (await screen.findAllByRole("combobox")).find((control) =>
+          control.getAttribute("aria-label")?.startsWith("Role:"),
+        ) as HTMLElement;
+        fireEvent.click(select);
         fireEvent.click(screen.getAllByRole("option")[1]);
       },
     ],
@@ -384,7 +259,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
         playStyle: "HighPress",
       },
     ]);
-    refused = new Set([command]);
+    knobs.refused = new Set([command]);
     fakeBackend();
     render(<ControlledTacticsTab />);
 
@@ -405,14 +280,14 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
    * Then the alert is gone and the screen shows what the backend holds.
    */
   it("clears the alert once a later write saves", async () => {
-    refused = new Set(["apply_tactic_preset"]);
+    knobs.refused = new Set(["apply_tactic_preset"]);
     fakeBackend();
     render(<ControlledTacticsTab />);
     fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
     fireEvent.click(screen.getByRole("option", { name: /High Press/ }));
     await screen.findByRole("alert");
 
-    refused.clear();
+    knobs.refused.clear();
     fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
     fireEvent.click(screen.getByRole("option", { name: /High Press/ }));
 
@@ -426,7 +301,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
    * Then the alert is gone: a write that saved, from the tactic library too, clears it.
    */
   it("clears the alert once a custom tactic save is accepted", async () => {
-    refused = new Set(["apply_tactic_preset"]);
+    knobs.refused = new Set(["apply_tactic_preset"]);
     fakeBackend();
     render(<ControlledTacticsTab />);
     fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
@@ -450,6 +325,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
       expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
         careerToken: 0,
         formation: "4-4-2",
+        keepInstructions: true,
         playStyle: "Balanced",
       }),
     );
@@ -484,7 +360,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
           "Saved custom",
         ),
       );
-      fireEvent.click(screen.getByRole("combobox", { name: "Play Style" }));
+      fireEvent.click(screen.getByRole("combobox", { name: "Play style" }));
       fireEvent.click(screen.getByRole("option", { name: /Balanced/ }));
       fireEvent.click(screen.getByRole("combobox", { name: "Formation" }));
       fireEvent.click(screen.getByRole("option", { name: "4-4-2" }));
@@ -506,7 +382,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     fakeBackend();
     render(<ControlledTacticsTab />);
 
-    fireEvent.click(screen.getByRole("combobox", { name: "Play Style" }));
+    fireEvent.click(screen.getByRole("combobox", { name: "Play style" }));
     fireEvent.click(screen.getByRole("option", { name: /Defensive/ }));
 
     await waitFor(() => {
@@ -558,7 +434,8 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     );
     mockedInvoke.mockClear();
 
-    fireEvent.click(screen.getByRole("button", { name: "Reset to defaults" }));
+    openActionsMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Reset to defaults" }));
 
     await waitFor(() =>
       expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
@@ -577,12 +454,14 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
    * When they look at Reset
    * Then it is disabled, as the badge says Synced.
    */
-  it("disables Reset on an untouched preset", () => {
+  it("disables Reset on an untouched preset", async () => {
     fakeBackend();
     render(<ControlledTacticsTab />);
 
-    expect(screen.getByText("Synced")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Reset to defaults" })).toBeDisabled();
+    // The badge says Synced once the library has loaded (until then it says so is loading).
+    expect(await screen.findByText("Synced")).toBeInTheDocument();
+    openActionsMenu();
+    expect(screen.getByRole("menuitem", { name: "Reset to defaults" })).toBeDisabled();
   });
 
   /**
@@ -599,7 +478,8 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     fireEvent.click(within(widthRow).getByRole("combobox"));
     fireEvent.click(screen.getByRole("option", { name: "Wide" }));
     await waitFor(() => expect(screen.getByText("Unsaved changes")).toBeInTheDocument());
-    const reset = screen.getByRole("button", { name: "Reset to defaults" });
+    openActionsMenu();
+    const reset = screen.getByRole("menuitem", { name: "Reset to defaults" });
     expect(reset).toBeEnabled();
 
     fireEvent.click(reset);
@@ -612,7 +492,8 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
       }),
     );
     await waitFor(() => expect(screen.getByText("Synced")).toBeInTheDocument());
-    expect(screen.getByRole("button", { name: "Reset to defaults" })).toBeDisabled();
+    openActionsMenu();
+    expect(screen.getByRole("menuitem", { name: "Reset to defaults" })).toBeDisabled();
   });
 
   /**
@@ -649,7 +530,8 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     );
     mockedInvoke.mockClear();
 
-    fireEvent.click(screen.getByRole("button", { name: "Reset to defaults" }));
+    openActionsMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Reset to defaults" }));
 
     // Reset puts the saved tactic back, through the backend, as it was saved.
     await waitFor(() =>
@@ -673,7 +555,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
   it("shows the unsaved-changes badge once a phase dial is tuned", async () => {
     fakeBackend();
     render(<ControlledTacticsTab />);
-    expect(screen.getByText("Synced")).toBeInTheDocument();
+    expect(await screen.findByText("Synced")).toBeInTheDocument();
 
     openPhaseBlueprint();
     const widthRow = screen.getByText("Width").parentElement as HTMLElement;
@@ -699,6 +581,8 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
 
     fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
     fireEvent.click(screen.getByRole("option", { name: /Balanced Control/ }));
+    // The tuned dials would be replaced, so it asks first.
+    fireEvent.click(await screen.findByRole("button", { name: "Replace my instructions" }));
 
     await waitFor(() => expect(screen.getByText("Synced")).toBeInTheDocument());
   });

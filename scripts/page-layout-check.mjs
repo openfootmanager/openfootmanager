@@ -26,13 +26,23 @@ const WINDOWS = [
 ];
 
 /** The harness's pages (HARNESS_PAGES in src/dev/pageHarness/harnessPage.ts; a test holds them equal). */
-const PAGES = ["home", "squad", "players", "teams", "managers", "staff"];
+const PAGES = ["home", "squad", "players", "teams", "managers", "staff", "tactics"];
 
 /**
  * The player profile, which looks different for each way the club can know a player (HARNESS_PROFILES
  * in the same file; a test holds them equal): measured in each, at every window.
  */
-const PROFILES = ["own", "rival", "scouted", "unknown", "retired"];
+const PROFILES = [
+  "own",
+  "keeper",
+  "injured",
+  "loaned",
+  "rival",
+  "scouted",
+  "unknown",
+  "freeAgent",
+  "retired",
+];
 
 /**
  * The lists whose cards draw on the shared card shell, measured in their cards view too: a card that
@@ -42,11 +52,30 @@ const PROFILES = ["own", "rival", "scouted", "unknown", "retired"];
 const CARD_VIEWS = ["players", "squad", "teams"];
 const CARD_WINDOWS = WINDOWS.filter((window) => window.scale === "normal" && window.lang === "en");
 
+/**
+ * The World Editor's home, which is a route and not a dashboard tab (`?page=worlds`): measured with
+ * worlds in its library and with none, which shows the empty state.
+ */
+const WORLD_LIBRARIES = ["populated", "empty"];
+
 /** Every page at every window; `page: undefined` is the style guide itself. */
 export const CASES = [
-  ...[undefined, ...PAGES].flatMap((page) => WINDOWS.map((window) => ({ page, ...window }))),
+  ...[undefined, ...PAGES].flatMap((page) =>
+    WINDOWS.map((window) => ({
+      page,
+      // The Tactics workbench never scrolls the page: its lineup region (the table and the pitch) has
+      // to show in the frame, and its table has to fit its columns, at every window.
+      ...(page === "tactics"
+        ? { regionsFit: '[data-region="tactics-lineup"]', tablesFit: true }
+        : {}),
+      ...window,
+    })),
+  ),
   ...PROFILES.flatMap((player) =>
     WINDOWS.map((window) => ({ page: "profile", player, ...window })),
+  ),
+  ...WORLD_LIBRARIES.flatMap((library) =>
+    WINDOWS.map((window) => ({ page: "worlds", library, tablesFit: true, ...window })),
   ),
   ...CARD_VIEWS.flatMap((page) =>
     CARD_WINDOWS.map((window) => ({ page, view: "cards", ...window })),
@@ -101,6 +130,12 @@ export function judge({
   innerHeight,
   unanswered,
   pastEdge,
+  belowTheFold = [],
+  tablesFit = false,
+  tablesScroll = [],
+  regionsFit = false,
+  regionsOverflow = [],
+  regionsMissing = false,
   rendered,
   faces,
 }) {
@@ -121,6 +156,18 @@ export function judge({
     problems.push(`the page scrolls down (${scrollHeight} > ${innerHeight})`);
   }
   if (pastEdge.length > 0) problems.push(`past the right edge: ${pastEdge.join(", ")}`);
+  if (belowTheFold.length > 0) {
+    problems.push(`below the bottom edge of the window: ${belowTheFold.join(", ")}`);
+  }
+  if (regionsFit && regionsOverflow.length > 0) {
+    problems.push(`a region scrolls down inside the page: ${regionsOverflow.join(", ")}`);
+  }
+  if (regionsFit && regionsMissing) {
+    problems.push("no visible region on the page matches the case's fit selector");
+  }
+  if (tablesFit && tablesScroll.length > 0) {
+    problems.push(`table scrolls sideways inside its container: ${tablesScroll.join(", ")}`);
+  }
   if (unanswered.length > 0) problems.push(`unanswered commands: ${unanswered.join(", ")}`);
   if (!rendered) problems.push("nothing rendered");
   return problems;
@@ -169,12 +216,64 @@ export async function loadFaces(fonts, faces) {
   );
 }
 
-// The first wait lets the harness mount and its answers land; the fonts are waited for after.
-const MEASURE = `(async () => {
+/**
+ * The regions of the page that scroll down, and the verdict on the ones a case asks to fit. Runs in
+ * the page (its source is sent there), so it reaches nothing but its arguments.
+ *
+ * `all` lists every scrolling descendant of `<main>`, for diagnostics: a component may scroll (a
+ * roster in its own box). `overflow` lists only the regions matching `fitSelector` that hold more
+ * than they show: the page's workspace, which the document's own height never reveals (the
+ * dashboard keeps the document the window's height and scrolls inside). `missing` is a selector that
+ * matches nothing on the page. Each is named by a selector that identifies it (`nav[aria-label="..."]`
+ * for a labelled region, else its tag and first classes, escaped), with its scroll height against its
+ * visible height.
+ */
+export function collectRegions(doc, styleOf, fitSelector) {
+  // CSS.escape lives in the page; a stand-in escapes what a selector needs where it does not exist.
+  const escapeCss = (text) =>
+    typeof CSS !== "undefined" && CSS.escape ? CSS.escape(text) : text.replace(/[^\w-]/g, "\\$&");
+  // A name that can be pasted into the page: an attribute selector for a labelled region, else its
+  // tag and first classes, escaped.
+  const selectorOf = (element) => {
+    const tag = element.tagName.toLowerCase();
+    const label = element.getAttribute("aria-label");
+    if (label) return `${tag}[aria-label="${label.replace(/["\\]/g, "\\$&")}"]`;
+    return (
+      tag +
+      [...element.classList]
+        .slice(0, 2)
+        .map((name) => `.${escapeCss(name)}`)
+        .join("")
+    );
+  };
+  const describe = (element) =>
+    `${selectorOf(element)} (${element.scrollHeight} > ${element.clientHeight})`;
+  const holdsMore = (element) => element.scrollHeight > element.clientHeight + 1;
+  const all = [...doc.querySelectorAll("main *")]
+    .filter((element) => {
+      const overflowY = styleOf(element).overflowY;
+      return (overflowY === "auto" || overflowY === "scroll") && holdsMore(element);
+    })
+    .map(describe);
+  // A region with no height (display: none, or squeezed to nothing) is not on the screen: it cannot
+  // pass for fitting because it has nothing to overflow.
+  const targets = fitSelector
+    ? [...doc.querySelectorAll(fitSelector)].filter((element) => element.clientHeight > 0)
+    : [];
+  return {
+    all,
+    overflow: targets.filter(holdsMore).map(describe),
+    missing: Boolean(fitSelector) && targets.length === 0,
+  };
+}
+
+/** The measurement the page runs for a case; `fitSelector` is the region the case asks to fit. */
+const measureExpression = (fitSelector) => `(async () => {
   await new Promise((resolve) => setTimeout(resolve, 2500));
   const faces = await (${loadFaces.toString()})(document.fonts, ${JSON.stringify(REQUIRED_FACES)});
   await document.fonts.ready;
   const harness = window.__pageHarness;
+  const regions = (${collectRegions.toString()})(document, getComputedStyle, ${JSON.stringify(fitSelector ?? null)});
   return JSON.stringify({
     faces,
     loadedFaces: [...new Set([...document.fonts].filter((face) => face.status === "loaded").map((face) => face.family + " " + face.weight))],
@@ -186,15 +285,30 @@ const MEASURE = `(async () => {
     innerHeight: window.innerHeight,
     unanswered: harness ? harness.unanswered : [],
     pastEdge: harness ? harness.pastEdge() : [],
+    belowTheFold: [...document.querySelectorAll("[data-keep-in-window]")]
+      .filter((element) => element.getBoundingClientRect().bottom > window.innerHeight)
+      .map((element) => (element.textContent ?? "").trim()),
+    regionsScroll: regions.all,
+    regionsOverflow: regions.overflow,
+    regionsMissing: regions.missing,
+    // A table whose container scrolls sideways: the page's own width never shows it.
+    tablesScroll: [...document.querySelectorAll("table")]
+      .filter((table) => {
+        let box = table.parentElement;
+        while (box && getComputedStyle(box).overflowX !== "auto" && getComputedStyle(box).overflowX !== "scroll") box = box.parentElement;
+        return box !== null && box.scrollWidth > box.clientWidth + 1;
+      })
+      .map((table) => table.getAttribute("aria-label") ?? "a table"),
     rendered: (document.getElementById("root")?.childElementCount ?? 0) > 0,
   });
 })()`;
 
-function caseUrl(base, { page, player, view, scale, lang }) {
+function caseUrl(base, { page, player, view, library, scale, lang }) {
   const query = new URLSearchParams({ theme: "light", scale, lang });
   if (page) query.set("page", page);
   if (player) query.set("player", player);
   if (view) query.set("view", view);
+  if (library) query.set("library", library);
   return `${base}/style-guide.html?${query}`;
 }
 
@@ -250,6 +364,15 @@ function connect(url) {
   return new Promise((resolve) => socket.addEventListener("open", () => resolve({ socket, call })));
 }
 
+/**
+ * The region a case asks to fit: `regionsFit: true` is the dashboard's workspace (the element marked
+ * `data-workspace`); a string is a CSS selector for the case's own region (a tab's main surface).
+ */
+function fitSelectorOf(testCase) {
+  if (testCase.regionsFit === true) return "[data-workspace]";
+  return testCase.regionsFit || null;
+}
+
 async function measure(call, base, testCase) {
   await call("Emulation.setDeviceMetricsOverride", {
     width: testCase.width,
@@ -260,7 +383,7 @@ async function measure(call, base, testCase) {
   await call("Page.navigate", { url: caseUrl(base, testCase) });
   await new Promise((resolve) => setTimeout(resolve, 3000));
   const reply = await call("Runtime.evaluate", {
-    expression: MEASURE,
+    expression: measureExpression(fitSelectorOf(testCase)),
     awaitPromise: true,
     returnByValue: true,
   });
@@ -302,11 +425,21 @@ async function main(base) {
         console.log(`device pixel ratio: ${measured.devicePixelRatio}`);
         console.log(`fonts loaded: ${measured.loadedFaces.join(", ")}`);
       }
-      const problems = judge({ ...measured, page: testCase.page });
+      const problems = judge({
+        ...measured,
+        page: testCase.page,
+        tablesFit: testCase.tablesFit,
+        regionsFit: Boolean(testCase.regionsFit),
+      });
       const label = `${testCase.page ?? "style guide"}${testCase.player ? ` (${testCase.player})` : ""}${testCase.view ? ` (${testCase.view})` : ""} ${testCase.width}×${testCase.height} ${testCase.scale} ${testCase.lang}`;
       console.log(
         `${problems.length === 0 ? "ok  " : "FAIL"} ${label}${problems.length ? `: ${problems.join("; ")}` : ""}`,
       );
+      // What scrolls inside the page where no case asked it not to: a list's panel scrolls by design,
+      // and the redesign's Tactics screen must not; the run shows which pages do, without failing them.
+      if (!testCase.regionsFit && measured.regionsScroll?.length > 0) {
+        console.log(`     scrolls inside: ${measured.regionsScroll.join(", ")}`);
+      }
       if (problems.length > 0) failed += 1;
     }
     socket.close();

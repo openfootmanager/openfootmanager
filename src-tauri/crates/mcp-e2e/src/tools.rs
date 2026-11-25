@@ -200,11 +200,7 @@ pub const CATALOG: &[CatalogEntry] = &[
         &["mode"],
     ),
     ("match_step", &[("minutes", "integer")], &["minutes"]),
-    (
-        "match_team_talk",
-        &[("context", "string"), ("tone", "string")],
-        &["context", "tone"],
-    ),
+    ("match_team_talk", &[("tone", "string")], &["tone"]),
     ("ping", &[], &[]),
     ("scout_get_reports", &[], &[]),
     (
@@ -771,14 +767,8 @@ impl Client {
         self.call("match_step", object([("minutes", Some(json!(minutes)))]))
     }
 
-    pub fn match_team_talk(&self, context: &str, tone: &str) -> Reply<live_match::TeamTalkApplied> {
-        self.call(
-            "match_team_talk",
-            object([
-                ("context", Some(json!(context))),
-                ("tone", Some(json!(tone))),
-            ]),
-        )
+    pub fn match_team_talk(&self, tone: &str) -> Reply<live_match::TeamTalkApplied> {
+        self.call("match_team_talk", object([("tone", Some(json!(tone)))]))
     }
 
     pub fn ping(&self) -> Reply<help::Pong> {

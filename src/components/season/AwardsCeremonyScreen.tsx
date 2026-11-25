@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { localizeCompetitionName } from "../../lib/competitionName";
+import { FREE_AGENT_TEAM_KEY, storedTeamLabel } from "../../lib/team";
 import { Briefcase, Star, Trophy } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -60,12 +61,14 @@ export default function AwardsCeremonyScreen({
     article,
     gameState,
     "goldenBoot",
+    t,
   );
   const playerOfYear = resolvePlayerWinner(
     awards?.player_of_year[0] ?? null,
     article,
     gameState,
     "poty",
+    t,
   );
   const hasPlayerOfYear = awards
     ? awards.player_of_year.length > 0
@@ -198,12 +201,13 @@ function resolvePlayerWinner(
   article: NewsArticle | undefined,
   gameState: GameStateData,
   prefix: "goldenBoot" | "poty",
+  t: (key: string) => string,
 ): ResolvedPlayerWinner {
   if (entry) {
     return {
       entry,
       playerName: entry.player_name,
-      teamName: entry.team_name,
+      teamName: storedTeamLabel(entry.team_name, t),
       value: prefix === "goldenBoot" ? entry.value.toFixed(0) : entry.value.toFixed(1),
       playerId: entry.player_id || null,
       teamId: entry.team_id || null,
@@ -212,12 +216,21 @@ function resolvePlayerWinner(
 
   const params = article?.i18n_params ?? {};
   const playerName = params[`${prefix}Winner`] ?? "-";
-  const teamName = params[`${prefix}Team`] ?? "-";
+  // An article has no entry to read the club from: its param is the name, the free-agent key, or
+  // (an older article) the English literal. A missing param stays "-".
+  const teamParam = params[`${prefix}Team`];
+  const teamName = teamParam === undefined ? "-" : storedTeamLabel(teamParam, t);
   const playerId =
     gameState.players.find((player) => {
       return player.full_name === playerName || player.match_name === playerName;
     })?.id ?? null;
-  const teamId = gameState.teams.find((team) => team.name === teamName)?.id ?? null;
+  // The param says "no club" (the key, the old literal or nothing), not the label it was worded
+  // as: a real club can carry the same name as the label, and must not be linked to.
+  const hasNoClub =
+    teamParam !== undefined && storedTeamLabel(teamParam, (key) => key) === FREE_AGENT_TEAM_KEY;
+  const teamId = hasNoClub
+    ? null
+    : (gameState.teams.find((team) => team.name === teamName)?.id ?? null);
   const value =
     prefix === "goldenBoot" ? (params.goldenBootGoals ?? "-") : (params.potyRating ?? "-");
 

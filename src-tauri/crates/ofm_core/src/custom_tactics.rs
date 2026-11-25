@@ -6,6 +6,8 @@
 
 use std::collections::HashSet;
 
+use ts_rs::TS;
+
 use domain::custom_tactic::{CustomTactic, SavedSlot, TacticContents};
 use domain::team::{MatchRoles, PlayStyle, Team};
 
@@ -232,6 +234,75 @@ fn restore_eleven_and_roles(
     }
     team.starting_xi_ids = lineup;
     restored_roles
+}
+
+/// The parts of the manager's tactic that differ from a saved tactic: what the Tactics screen's
+/// unsaved-changes badge and its "replace my instructions?" question ask about. One flag per part,
+/// so a screen can name what changed and a test can pin each part on its own.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct TacticDifferences {
+    pub formation: bool,
+    pub play_style: bool,
+    /// Any of the team instructions (the phase dials).
+    pub instructions: bool,
+    /// Who starts, slot by slot.
+    pub eleven: bool,
+    /// A role a starter who is in both elevens holds in one and not the other.
+    pub roles: bool,
+    /// The captain, vice-captain or a set-piece taker.
+    pub takers: bool,
+}
+
+impl TacticDifferences {
+    pub fn any(&self) -> bool {
+        self.formation
+            || self.play_style
+            || self.instructions
+            || self.eleven
+            || self.roles
+            || self.takers
+    }
+}
+
+/// How the manager's tactic as it stands differs from the saved tactic `id`, part by part. The rule
+/// lives here and not in the screen because the tactic is the team's, and what it holds is the
+/// backend's to say (#1189).
+///
+/// A tactic saved before tactics held their contents has only a formation and a play style to
+/// differ in. Applying a saved tactic whose players have since left gives their slots to others, so
+/// right afterwards the eleven differs from what was saved, which is true: saving would change it.
+pub fn tactic_differences(game: &Game, id: &str) -> Result<TacticDifferences, String> {
+    let id = id.trim();
+    let saved = game
+        .custom_tactics
+        .iter()
+        .find(|tactic| tactic.id.trim() == id)
+        .ok_or_else(|| NOT_FOUND_ERROR.to_string())?;
+    let now = current_tactic(game, saved)?;
+    let mut differences = TacticDifferences {
+        formation: now.formation != saved.formation,
+        play_style: now.play_style != saved.play_style,
+        ..TacticDifferences::default()
+    };
+    let (Some(held), Some(current)) = (&saved.contents, &now.contents) else {
+        return Ok(differences);
+    };
+    differences.instructions = held.instructions != current.instructions;
+    differences.eleven = held
+        .slots
+        .iter()
+        .map(|slot| &slot.player_id)
+        .ne(current.slots.iter().map(|slot| &slot.player_id));
+    differences.roles = held.slots.iter().any(|saved_slot| {
+        current
+            .slots
+            .iter()
+            .find(|slot| slot.player_id == saved_slot.player_id)
+            .is_some_and(|slot| slot.role != saved_slot.role)
+    });
+    differences.takers = held.match_roles != current.match_roles;
+    Ok(differences)
 }
 
 /// Renames the saved tactic `id`, keeping everything else it holds.
@@ -1025,5 +1096,161 @@ mod whole_tactic_tests {
             Err(NO_TEAM_ERROR.to_string())
         );
         assert!(game.custom_tactics.is_empty());
+    }
+
+    /// Given a tactic just saved from the club as it stands
+    /// When the differences are asked
+    /// Then there are none.
+    #[test]
+    fn a_tactic_just_saved_differs_in_nothing() {
+        let mut game = game();
+        set_up(&mut game);
+        save_current_tactic(&mut game, &draft("away", "Away")).unwrap();
+
+        let differences = tactic_differences(&game, "away").unwrap();
+
+        assert_eq!(differences, TacticDifferences::default());
+        assert!(!differences.any());
+    }
+
+    /// Given a saved tactic and a club changed in one part at a time
+    /// When the differences are asked
+    /// Then exactly that part is flagged, and `any` says so.
+    #[test]
+    fn each_part_the_manager_changes_is_flagged_on_its_own() {
+        type Change = fn(&mut Game);
+        let cases: [(&str, Change, TacticDifferences); 6] = [
+            (
+                "formation",
+                |game| team(game).formation = "4-3-3".into(),
+                TacticDifferences {
+                    formation: true,
+                    ..Default::default()
+                },
+            ),
+            (
+                "play style",
+                |game| team(game).play_style = PlayStyle::Balanced,
+                TacticDifferences {
+                    play_style: true,
+                    ..Default::default()
+                },
+            ),
+            (
+                "an instruction",
+                |game| team(game).tactics_phase = TacticsPhaseSettings::default(),
+                TacticDifferences {
+                    instructions: true,
+                    ..Default::default()
+                },
+            ),
+            (
+                "a starter",
+                |game| team(game).starting_xi_ids[10] = "b0".into(),
+                TacticDifferences {
+                    eleven: true,
+                    ..Default::default()
+                },
+            ),
+            (
+                "a player's role",
+                |game| {
+                    team(game)
+                        .player_roles
+                        .insert("s2".into(), PlayerRole::Standard);
+                },
+                TacticDifferences {
+                    roles: true,
+                    ..Default::default()
+                },
+            ),
+            (
+                "a taker",
+                |game| team(game).match_roles.corner_taker = Some("s7".into()),
+                TacticDifferences {
+                    takers: true,
+                    ..Default::default()
+                },
+            ),
+        ];
+        for (part, change, expected) in cases {
+            let mut game = game();
+            set_up(&mut game);
+            save_current_tactic(&mut game, &draft("away", "Away")).unwrap();
+
+            change(&mut game);
+
+            let differences = tactic_differences(&game, "away").unwrap();
+            assert_eq!(differences, expected, "changing {part}");
+            assert!(differences.any(), "changing {part}");
+        }
+    }
+
+    /// Given a saved tactic and two starters who swap slots, each keeping his own role
+    /// When the differences are asked
+    /// Then the eleven differs and the roles do not: a role is the player's, not the slot's.
+    #[test]
+    fn a_role_that_moves_with_its_player_is_not_a_role_change() {
+        let mut game = game();
+        set_up(&mut game);
+        save_current_tactic(&mut game, &draft("away", "Away")).unwrap();
+
+        team(&mut game).starting_xi_ids.swap(0, 2);
+
+        let differences = tactic_differences(&game, "away").unwrap();
+        assert!(differences.eleven);
+        assert!(!differences.roles);
+    }
+
+    /// Given a tactic saved before tactics held their contents (a formation and a style only)
+    /// When the club's eleven, dials and takers differ from anything
+    /// Then only its formation and style are compared, and they match.
+    #[test]
+    fn a_tactic_saved_without_contents_differs_only_in_shape_and_style() {
+        let mut game = game();
+        set_up(&mut game);
+        game.custom_tactics.push(CustomTactic {
+            formation: "4-4-2".into(),
+            play_style: "Counter".into(),
+            ..draft("old", "Old")
+        });
+        change_everything(&mut game);
+        team(&mut game).formation = "4-4-2".into();
+        team(&mut game).play_style = PlayStyle::Counter;
+
+        assert_eq!(
+            tactic_differences(&game, "old").unwrap(),
+            TacticDifferences::default()
+        );
+    }
+
+    /// Given an id that is not in the library
+    /// When the differences are asked
+    /// Then it is refused as not found.
+    #[test]
+    fn the_differences_from_a_missing_tactic_are_refused() {
+        let mut game = game();
+        set_up(&mut game);
+
+        assert_eq!(
+            tactic_differences(&game, "missing"),
+            Err(NOT_FOUND_ERROR.to_string())
+        );
+    }
+
+    /// Given a manager without a club and a saved tactic
+    /// When the differences are asked
+    /// Then it is refused with the no-team key.
+    #[test]
+    fn a_manager_without_a_club_has_nothing_to_differ() {
+        let mut game = game();
+        set_up(&mut game);
+        save_current_tactic(&mut game, &draft("away", "Away")).unwrap();
+        game.manager.team_id = None;
+
+        assert_eq!(
+            tactic_differences(&game, "away"),
+            Err(NO_TEAM_ERROR.to_string())
+        );
     }
 }

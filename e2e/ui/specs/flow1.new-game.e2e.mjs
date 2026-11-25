@@ -2,13 +2,7 @@
 //
 // It stops at the pre-match lineup: playing the match is flow 2's business. Each `it` is one step
 // of the player's path, so a red night names the step that broke.
-import {
-  buttonNamed,
-  buttonStartingWith,
-  clickWhenReady,
-  typeInto,
-  waitForRoute,
-} from "../helpers/ui.mjs";
+import { buttonNamed, clickWhenReady, typeInto, waitForRoute } from "../helpers/ui.mjs";
 
 describe("flow 1: a new game, to the first match day", () => {
   it("opens on the main menu", async () => {
@@ -53,7 +47,12 @@ describe("flow 1: a new game, to the first match day", () => {
     await $('//table[@aria-label="Clubs"]//button[@aria-pressed="true"]').waitForDisplayed({
       timeout: 30_000,
     });
-    await clickWhenReady(buttonStartingWith("Manage "));
+    // Manage is in the header and again at the foot of the card (one action, two places): the
+    // selector names the header's, so it still finds exactly one button.
+    await $(
+      '//aside[@aria-label="Chosen club"]//button[starts-with(normalize-space(.), "Manage ")]',
+    ).waitForDisplayed({ timeout: 30_000 });
+    await clickWhenReady($('//header//button[starts-with(normalize-space(.), "Manage ")]'));
     await waitForRoute("/dashboard");
     // The career is the one the player asked for: the sidebar names the manager just created.
     await $('//*[normalize-space(.)="Ada Tester"]').waitForDisplayed({ timeout: 30_000 });

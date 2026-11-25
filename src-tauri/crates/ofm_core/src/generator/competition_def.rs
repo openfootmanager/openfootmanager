@@ -969,7 +969,7 @@ fn detect_selector_cycles(file: &CompetitionDefinitionFile, errors: &mut Vec<Def
 /// last valid day of the month when necessary (e.g. Feb 29 in a non-leap year
 /// becomes Feb 28). Month and day are also clamped into their valid ranges so
 /// this function is infallible even for DB-sourced values.
-fn date_utc(year: i32, month: u8, day: u8) -> DateTime<Utc> {
+pub(crate) fn date_utc(year: i32, month: u8, day: u8) -> DateTime<Utc> {
     let m = month.clamp(1, 12);
     let d = day.clamp(1, 31);
     for candidate in (1..=d).rev() {

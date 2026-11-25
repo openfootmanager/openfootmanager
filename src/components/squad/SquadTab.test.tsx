@@ -885,7 +885,7 @@ describe("SquadTab", () => {
     expect(within(keeperRow).getByText("Critical")).toBeInTheDocument();
     // Table C's contract column: the stage chip and the month the contract ends, on one line.
     expect(within(keeperRow).getByText(/Oct 2026/)).toBeInTheDocument();
-    expect(within(keeperRow).queryByText("Expires October 15, 2026")).toBeNull();
+    expect(within(keeperRow).queryByText("Expires 15 October 2026")).toBeNull();
 
     const playerRow = screen.getByText("GK1").closest("tr");
     expect(playerRow).not.toBeNull();

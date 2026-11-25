@@ -443,6 +443,17 @@ pub fn apply_player_response(
         .find(|m| m.id == message_id)
         .and_then(|m| m.context.player_id.clone())?;
 
+    // The action is looked for before anything is applied: it is marked resolved at the end, and a
+    // response to an action the message does not have must change nothing.
+    let has_action = game
+        .messages
+        .iter()
+        .find(|m| m.id == message_id)
+        .is_some_and(|m| m.actions.iter().any(|a| a.id == action_id));
+    if !has_action {
+        return None;
+    }
+
     let mut rng = game.rng_today(&format!("response/{message_id}/{option_id}"));
 
     // Get personality factor for this player

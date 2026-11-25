@@ -32,7 +32,7 @@ export function ConfederationsTab({
     >
       {confederations.map((conf, i) => (
         <EntityRow
-          key={entityRowKey(conf.id, i)}
+          key={entityRowKey(conf)}
           title={conf.name || conf.id}
           subtitle={conf.name ? conf.id : undefined}
           onEdit={() => onEdit(i)}

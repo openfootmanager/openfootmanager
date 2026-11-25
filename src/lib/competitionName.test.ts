@@ -1,7 +1,210 @@
 import i18n, { i18nReady } from "../i18n";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { competitionDisplayName, localizeCompetitionName } from "./competitionName";
+import {
+  competitionDisplayName,
+  localizeCompetitionName,
+  type NamedCompetition,
+} from "./competitionName";
+
+const messages: Record<string, string> = {
+  "nations.arg": "Argentina",
+  "nations.ar": "Argentina",
+  "tournaments.competitions.league": "Liga de {{country}}",
+  "tournaments.competitions.firstDivision": "Primera División de {{country}}",
+  "tournaments.competitions.tierDivision": "{{country}} Division {{tier}}",
+  "tournaments.competitions.phaseOpening": "Apertura",
+  "tournaments.competitions.phaseClosing": "Clausura",
+};
+
+function translate(key: string, options: Record<string, unknown> = {}): string {
+  const template = messages[key] ?? String(options.defaultValue ?? key);
+  return template.replace(/\{\{(\w+)\}\}/g, (_match, name: string) => String(options[name] ?? ""));
+}
+
+describe("competitionDisplayName", () => {
+  it("renders distinct one-based division tiers from the competition calendar", () => {
+    const competition: NamedCompetition = {
+      name_key: "tournaments.competitions.tierDivision",
+      country_id: "ARG",
+      calendar: { season: { division: { tier: 3 } } },
+    };
+
+    expect(competitionDisplayName(competition, translate)).toBe("Argentina Division 3");
+    expect(
+      competitionDisplayName(
+        {
+          ...competition,
+          calendar: {
+            season: { division: { tier: 4 } },
+          },
+        },
+        translate,
+      ),
+    ).toBe("Argentina Division 4");
+  });
+
+  it("uses the division tier passed through a compact frontend DTO", () => {
+    expect(
+      competitionDisplayName(
+        {
+          name_key: "tournaments.competitions.tierDivision",
+          country_id: "AR",
+          division_tier: 3,
+        },
+        translate,
+      ),
+    ).toBe("Argentina Division 3");
+  });
+
+  /**
+   * Given an opening split-season league
+   * When its name is rendered
+   * Then the localized tier and phase are both shown
+   */
+  it("keeps the opening phase visible alongside its localized tier name", () => {
+    const competition: NamedCompetition = {
+      name_key: "tournaments.competitions.tierDivision",
+      country_id: "ARG",
+      calendar: { season: { division: { tier: 3, phase: "opening" } } },
+    };
+
+    expect(competitionDisplayName(competition, translate)).toBe("Argentina Division 3 Apertura");
+  });
+
+  /**
+   * Given a closing split-season league
+   * When its name is rendered
+   * Then the localized tier and phase are both shown
+   */
+  it("keeps the closing phase visible alongside its localized tier name", () => {
+    const competition: NamedCompetition = {
+      name_key: "tournaments.competitions.tierDivision",
+      country_id: "ARG",
+      calendar: { season: { division: { tier: 3, phase: "closing" } } },
+    };
+
+    expect(competitionDisplayName(competition, translate)).toBe("Argentina Division 3 Clausura");
+  });
+
+  /**
+   * Given a single-tier split-season league
+   * When its name is rendered
+   * Then its phase follows the localized generic league name
+   */
+  it("keeps the phase visible for a single-tier league key", () => {
+    expect(
+      competitionDisplayName(
+        {
+          name_key: "tournaments.competitions.league",
+          country_id: "AR",
+          calendar: { season: { division: { tier: 1, phase: "opening" } } },
+        },
+        translate,
+      ),
+    ).toBe("Liga de Argentina Apertura");
+  });
+
+  /**
+   * Given a saved split-season division from before name keys were added
+   * When its name is rendered
+   * Then its stored name keeps the phase that distinguishes it from the other half
+   */
+  it("keeps a legacy split-season name intact when no key was saved", () => {
+    expect(
+      competitionDisplayName(
+        {
+          name: "Argentina First Division Apertura",
+          country_id: "AR",
+          calendar: {
+            definition_id: "ar-d1-apertura",
+            season: {
+              division: {
+                familyId: "ar-league",
+                tier: 1,
+                phase: "opening",
+              },
+            },
+          },
+        },
+        translate,
+      ),
+    ).toBe("Argentina First Division Apertura");
+  });
+
+  /**
+   * Given a saved one-tier split-season league from before name keys were added
+   * When its name is rendered
+   * Then its stored closing phase remains visible
+   */
+  it("keeps a legacy one-tier split-season name intact", () => {
+    expect(
+      competitionDisplayName(
+        {
+          name: "Argentina League Clausura",
+          country_id: "AR",
+          calendar: {
+            definition_id: "ar-d1-clausura",
+            season: {
+              division: {
+                familyId: "ar-league",
+                tier: 1,
+                phase: "closing",
+              },
+            },
+          },
+        },
+        translate,
+      ),
+    ).toBe("Argentina League Clausura");
+  });
+
+  /**
+   * Given an authored competition that reuses generated-looking calendar identifiers
+   * When its name is rendered without a translation key
+   * Then its authored display name is preserved
+   */
+  it("preserves an authored name when its calendar resembles a generated split season", () => {
+    expect(
+      competitionDisplayName(
+        {
+          name: "Liga Profesional Apertura",
+          country_id: "AR",
+          calendar: {
+            definition_id: "ar-d1-apertura",
+            season: {
+              division: {
+                familyId: "ar-league",
+                tier: 1,
+                phase: "opening",
+              },
+            },
+          },
+        },
+        translate,
+      ),
+    ).toBe("Liga Profesional Apertura");
+  });
+
+  /**
+   * Given an authored localized competition key
+   * When its division has a phase
+   * Then the name is not double-suffixed
+   */
+  it("does not append a phase to an authored competition key", () => {
+    expect(
+      competitionDisplayName(
+        {
+          name: "Argentina Opening League",
+          name_key: "custom.competitions.argentinaOpening",
+          country_id: "ARG",
+          calendar: { season: { division: { tier: 1, phase: "opening" } } },
+        },
+        translate,
+      ),
+    ).toBe("Argentina Opening League");
+  });
+});
 
 const t = (key: string, options?: Record<string, unknown>) => i18n.t(key, options) as string;
 

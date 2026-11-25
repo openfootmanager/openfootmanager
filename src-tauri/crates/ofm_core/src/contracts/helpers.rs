@@ -136,6 +136,13 @@ pub(crate) fn expected_contract_years(player: &Player, current_date: NaiveDate) 
     1
 }
 
+/// Renewals honour the player's preferred length without offering an end that
+/// fails to extend the existing deal. New signings keep the age-only model.
+pub(crate) fn expected_renewal_years(player: &Player, current_date: NaiveDate) -> Option<u32> {
+    minimum_renewal_years(current_date, player.contract_end())
+        .map(|minimum| expected_contract_years(player, current_date).max(minimum))
+}
+
 pub(crate) fn minimum_acceptable_wage(current_wage: u32) -> u32 {
     ((current_wage as f32) * 0.85).floor() as u32
 }

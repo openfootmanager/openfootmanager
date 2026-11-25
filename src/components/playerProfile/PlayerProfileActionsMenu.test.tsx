@@ -127,6 +127,34 @@ beforeEach(() => {
 });
 
 describe("PlayerProfileActionsMenu", () => {
+  /**
+   * Given the manager's own player on loan at another club (the backend refuses to release him),
+   *       and one with no contract end
+   * When the menu is opened
+   * Then "Terminate" is disabled in both, the same rule the Contract tab's sheet shows
+   */
+  it("disables Terminate for a player on loan and for one with no contract end", () => {
+    const loan = {
+      parent_team_id: "team-1",
+      loan_team_id: "team-2",
+      start_date: "2026-07-01",
+      end_date: "2027-06-30",
+      wage_contribution_pct: 50,
+      buy_option_fee: null,
+    };
+    for (const patch of [{ active_loan: loan }, { contract_end: null }]) {
+      const player = buildPlayer(patch);
+      const props = baseProps(player, buildGameState([player]));
+      const { unmount } = render(<PlayerProfileActionsMenu {...props} isManagerOwnedProfile />);
+      openMenu();
+
+      expect(
+        screen.getByRole("menuitem", { name: "playerProfile.terminateContract" }),
+      ).toBeDisabled();
+      unmount();
+    }
+  });
+
   it("shows contract, market and squad actions for the manager's own player", () => {
     const player = buildPlayer();
     const props = baseProps(player, buildGameState([player]));

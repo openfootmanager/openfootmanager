@@ -7,7 +7,7 @@ mod targets;
 
 use chrono::{TimeZone, Utc};
 use domain::league::{
-    Fixture, FixtureCompetition, FixtureStatus, League, MatchResult, StandingEntry,
+    CompetitionType, Fixture, FixtureCompetition, FixtureStatus, League, MatchResult, StandingEntry,
 };
 use domain::manager::Manager;
 use domain::message::{
@@ -453,6 +453,77 @@ fn check_random_events_board_confidence_triggers_on_losses() {
     assert_eq!(board_msgs[0].category, MessageCategory::BoardDirective);
     assert_eq!(board_msgs[0].priority, MessagePriority::Urgent);
     assert_choose_option_keys(board_msgs[0]);
+}
+
+fn lost(
+    id: &str,
+    matchday: u32,
+    date: &str,
+    home: &str,
+    away: &str,
+    home_goals: u8,
+    away_goals: u8,
+) -> Fixture {
+    Fixture {
+        id: id.to_string(),
+        matchday,
+        date: date.to_string(),
+        home_team_id: home.to_string(),
+        away_team_id: away.to_string(),
+        competition: FixtureCompetition::League,
+        status: FixtureStatus::Completed,
+        result: Some(MatchResult {
+            home_goals,
+            away_goals,
+            home_scorers: vec![],
+            away_scorers: vec![],
+            report: None,
+            home_penalties: None,
+            away_penalties: None,
+        }),
+        ..Default::default()
+    }
+}
+
+/// Given three consecutive league losses in competitions, and a cup with no results in the mirror
+/// When daily random events run
+/// Then the board sends its confidence warning: three losses are not lost because the slot holds a cup
+#[test]
+fn board_confidence_counts_losses_in_competitions_when_the_mirror_is_a_cup() {
+    let mut game = make_game();
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let mut league = League::new(
+        "league1".to_string(),
+        "Test League".to_string(),
+        1,
+        &["team1".to_string(), "opp1".to_string()],
+    );
+    league.fixtures = vec![
+        lost("f1", 1, "2025-06-01", "team1", "opp1", 0, 2),
+        lost("f2", 2, "2025-06-05", "opp2", "team1", 3, 1),
+        lost("f3", 3, "2025-06-10", "team1", "opp3", 0, 1),
+    ];
+    game.competitions = vec![league];
+    let mut cup = League::new(
+        "cup1".to_string(),
+        "Cup".to_string(),
+        1,
+        &["team1".to_string(), "opp1".to_string()],
+    );
+    cup.kind = CompetitionType::Cup;
+    cup.standings.clear();
+    game.league = Some(cup);
+
+    check_random_events(&mut game);
+
+    let board_msgs: Vec<&InboxMessage> = game
+        .messages
+        .iter()
+        .filter(|m| m.id.starts_with("board_confidence_"))
+        .collect();
+    assert_eq!(board_msgs.len(), 1);
+    assert_eq!(board_msgs[0].id, "board_confidence_2025-06-10");
+    assert_eq!(board_msgs[0].date, today);
 }
 
 #[test]

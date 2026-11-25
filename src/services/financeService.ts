@@ -3,6 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 export type FinanceHealthLevelData = "stable" | "watch" | "warning" | "critical";
 
 interface BackendTeamFinanceSnapshotData {
+  committed_transfer_fees: number;
+  available_transfer_budget: number;
   annual_wage_bill: number;
   weekly_wage_spend: number;
   weekly_wage_budget: number;
@@ -66,6 +68,8 @@ export interface BackendFinanceSnapshotResponseData {
 }
 
 export interface TeamFinanceSnapshotData {
+  committedTransferFees: number;
+  availableTransferBudget: number;
   annualWageBill: number;
   weeklyWageSpend: number;
   weeklyWageBudget: number;
@@ -134,6 +138,8 @@ export interface FinanceSnapshotData {
 
 function mapSnapshot(snapshot: BackendTeamFinanceSnapshotData): TeamFinanceSnapshotData {
   return {
+    committedTransferFees: snapshot.committed_transfer_fees,
+    availableTransferBudget: snapshot.available_transfer_budget,
     annualWageBill: snapshot.annual_wage_bill,
     weeklyWageSpend: snapshot.weekly_wage_spend,
     weeklyWageBudget: snapshot.weekly_wage_budget,

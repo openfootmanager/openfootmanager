@@ -1,9 +1,20 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { installScrollGeometry } from "../../../test-utils/scrollGeometry";
 
 import { StaffTab } from "./StaffTab";
 import { emptyStaff, emptyTeam } from "./helpers";
 import type { StaffDef, TeamDef } from "./types";
+
+// jsdom lays nothing out: the fixture gives the scroller a viewport and puts the list below a toolbar,
+// moving the list's top with the scroll as a browser does, so a scroll test can fail.
+const LIST_OFFSET = 120;
+let restoreGeometry: () => void;
+beforeEach(() => {
+  restoreGeometry = installScrollGeometry({ viewportHeight: 640, listOffset: LIST_OFFSET });
+});
+afterEach(() => restoreGeometry());
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -36,13 +47,15 @@ function staffList(
 function renderTab(props: Partial<React.ComponentProps<typeof StaffTab>> = {}) {
   const onEdit = vi.fn();
   render(
-    <StaffTab
-      staff={staffList(500)}
-      onAdd={() => {}}
-      onEdit={onEdit}
-      onDelete={() => {}}
-      {...props}
-    />,
+    <div data-testid="scroller" data-scroll-container="">
+      <StaffTab
+        staff={staffList(500)}
+        onAdd={() => {}}
+        onEdit={onEdit}
+        onDelete={() => {}}
+        {...props}
+      />
+    </div>,
   );
   return { onEdit };
 }
@@ -52,28 +65,25 @@ function editButtons() {
 }
 
 describe("StaffTab", () => {
-  it("renders one page of rows rather than every staff member", () => {
+  it("renders a window of rows rather than every staff member", () => {
     renderTab();
 
-    expect(editButtons()).toHaveLength(50);
-    expect(screen.getByText("worldEditor.showingEntries shown=50 total=500")).toBeInTheDocument();
+    expect(editButtons().length).toBeGreaterThan(5);
+    expect(editButtons().length).toBeLessThan(40);
+    expect(screen.getByText("common.nResults count=500")).toBeInTheDocument();
   });
 
-  it("reveals another page on request", () => {
-    renderTab();
-
-    fireEvent.click(screen.getByRole("button", { name: "common.loadMore" }));
-
-    expect(editButtons()).toHaveLength(100);
-  });
-
-  it("still addresses a revealed row by its index in the whole list", () => {
+  it("still addresses a row it scrolled to by its index in the whole list", async () => {
     const { onEdit } = renderTab();
+    const scroller = screen.getByTestId("scroller");
 
-    fireEvent.click(screen.getByRole("button", { name: "common.loadMore" }));
-    fireEvent.click(editButtons()[50]);
+    scroller.scrollTop = LIST_OFFSET + 300 * 72;
+    fireEvent.scroll(scroller);
+    await waitFor(() => expect(screen.getByText("Staff 300")).toBeInTheDocument());
+    const row = screen.getByText("Staff 300").closest('[role="listitem"]') as HTMLElement;
+    fireEvent.click(row.querySelector('[title="worldEditor.editStaff"]') as HTMLElement);
 
-    expect(onEdit).toHaveBeenCalledWith(50);
+    expect(onEdit).toHaveBeenCalledWith(300);
   });
 
   it("says so when a search matches nothing, instead of going blank", () => {

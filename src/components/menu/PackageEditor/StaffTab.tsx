@@ -1,9 +1,8 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Search } from "lucide-react";
-import { EntityListFooter, EntityListShell, EntityRow } from "./shared";
-import { ENTITY_LIST_PAGE_SIZE, buildTeamNameMap, capRows } from "./entityList.helpers";
-import { useKeepRevealed } from "./entityList.reveal";
+import { EntityListFooter, EntityListShell, EntityRow, EntityRowList } from "./shared";
+import { buildTeamNameMap } from "./entityList.helpers";
 import type { StaffDef, TeamDef } from "./types";
 import { entityRowKey } from "./helpers";
 
@@ -45,8 +44,6 @@ export function StaffTab({
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
 
-  const [visibleCount, setVisibleCount] = useState(ENTITY_LIST_PAGE_SIZE);
-
   const teamNames = useMemo(() => buildTeamNameMap(teams), [teams]);
   const rows = useMemo(() => staff.map((s, i) => ({ s, i })), [staff]);
   const filtered = useMemo(() => {
@@ -67,19 +64,8 @@ export function StaffTab({
       );
     });
   }, [rows, query, teamNames]);
-  const { visible } = capRows(
-    filtered,
-    visibleCount,
-    ENTITY_LIST_PAGE_SIZE,
-    ({ i }) => i === selectedIndex,
-  );
-  useKeepRevealed(visible.length, visibleCount, setVisibleCount);
-
-  // Reset here rather than in an effect: an effect would let the old, longer
-  // list render once before shrinking it, which is the cost being avoided.
   function handleQueryChange(next: string) {
     setQuery(next);
-    setVisibleCount(ENTITY_LIST_PAGE_SIZE);
   }
 
   return (
@@ -103,45 +89,48 @@ export function StaffTab({
           </div>
         )
       }
-      footerSlot={
-        <EntityListFooter
-          shown={visible.length}
-          matches={filtered.length}
-          hasRecords={staff.length > 0}
-          onLoadMore={() => setVisibleCount((n) => n + ENTITY_LIST_PAGE_SIZE)}
-        />
-      }
+      footerSlot={<EntityListFooter matches={filtered.length} hasRecords={staff.length > 0} />}
     >
-      {visible.map(({ s, i }) => {
-        const name = `${s.firstName} ${s.lastName}`.trim() || s.id;
-        const roleColor = ROLE_COLOR[s.role] ?? "bg-gray-500";
-        const roleAbbr = ROLE_ABBR[s.role] ?? s.role.slice(0, 2).toUpperCase();
-        const clubName = s.club ? (teamNames.get(s.club) ?? s.club) : null;
-        return (
-          <EntityRow
-            key={entityRowKey(s.id, i)}
-            title={name}
-            subtitle={[t(`worldEditor.staffRole.${s.role}`, { defaultValue: s.role }), clubName]
-              .filter(Boolean)
-              .join(" · ")}
-            badge={
-              <div
-                className={`flex items-center justify-center w-9 h-9 rounded-full text-white text-[10px] font-bold flex-shrink-0 ${roleColor}`}
-              >
-                {roleAbbr}
-              </div>
-            }
-            onEdit={() => onEdit(i)}
-            onDelete={() => onDelete(i)}
-            onDuplicate={onDuplicate ? () => onDuplicate(i) : undefined}
-            duplicateLabel={t("worldEditor.duplicateEntity")}
-            editLabel={t("worldEditor.editStaff")}
-            deleteLabel={t("worldEditor.deleteStaff")}
-            isSelected={selectedIndex === i}
-            onClick={onSelect ? () => onSelect(i) : undefined}
-          />
-        );
-      })}
+      <EntityRowList
+        rows={filtered}
+        itemKey={({ s: member }) => entityRowKey(member)}
+        label={t("worldEditor.sectionStaff")}
+        selectedIndex={selectedIndex}
+        resetKey={query}
+        onSelect={onSelect}
+        renderRow={({ s: member, i }) => {
+          const name = `${member.firstName} ${member.lastName}`.trim() || member.id;
+          const roleColor = ROLE_COLOR[member.role] ?? "bg-gray-500";
+          const roleAbbr = ROLE_ABBR[member.role] ?? member.role.slice(0, 2).toUpperCase();
+          const clubName = member.club ? (teamNames.get(member.club) ?? member.club) : null;
+          return (
+            <EntityRow
+              title={name}
+              subtitle={[
+                t(`worldEditor.staffRole.${member.role}`, { defaultValue: member.role }),
+                clubName,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+              badge={
+                <div
+                  className={`flex items-center justify-center w-9 h-9 rounded-full text-white text-[10px] font-bold flex-shrink-0 ${roleColor}`}
+                >
+                  {roleAbbr}
+                </div>
+              }
+              onEdit={() => onEdit(i)}
+              onDelete={() => onDelete(i)}
+              onDuplicate={onDuplicate ? () => onDuplicate(i) : undefined}
+              duplicateLabel={t("worldEditor.duplicateEntity")}
+              editLabel={t("worldEditor.editStaff")}
+              deleteLabel={t("worldEditor.deleteStaff")}
+              isSelected={selectedIndex === i}
+              onClick={onSelect ? () => onSelect(i) : undefined}
+            />
+          );
+        }}
+      />
     </EntityListShell>
   );
 }

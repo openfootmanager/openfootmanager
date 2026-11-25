@@ -106,13 +106,27 @@ export async function setPlayerRole(
 export async function applyTacticPreset(
   formation: string,
   playStyle: string,
+  keepInstructions = false,
 ): Promise<GameStateData> {
-  return invokeForCareer<GameStateData>("apply_tactic_preset", { formation, playStyle });
+  // `keepInstructions` takes the preset's formation and play style only, in the same one write.
+  return invokeForCareer<GameStateData>("apply_tactic_preset", {
+    formation,
+    playStyle,
+    ...(keepInstructions ? { keepInstructions: true } : {}),
+  });
 }
 
-/** Whether the user's phase dials differ from the blueprint their play style implies. */
-export async function getTacticsBlueprintStatus(): Promise<{ modified: boolean }> {
-  return invoke<{ modified: boolean }>("get_tactics_blueprint_status");
+/**
+ * Whether the user's phase dials differ from a play style's blueprint: their own style's, or, given
+ * `playStyle`, the one a preset of that style would put in their place.
+ */
+export async function getTacticsBlueprintStatus(
+  playStyle?: string,
+): Promise<{ modified: boolean }> {
+  return invoke<{ modified: boolean }>(
+    "get_tactics_blueprint_status",
+    playStyle === undefined ? undefined : { playStyle },
+  );
 }
 
 export async function setTacticsPhase(

@@ -21,6 +21,8 @@ export interface HarnessIpc {
    * by name, and a call its handler declined with its arguments.
    */
   unanswered: string[];
+  /** Every command asked, in order, answered or not, so a test can say a page did not ask yet. */
+  calls: string[];
 }
 
 /**
@@ -30,13 +32,16 @@ export interface HarnessIpc {
  */
 export function createHarnessIpc(handlers: CommandHandlers): HarnessIpc {
   const unanswered: string[] = [];
+  const calls: string[] = [];
   function decline(cmd: string, call: string): never {
     if (!unanswered.includes(call)) unanswered.push(call);
     throw new Error(`page harness: no answer for "${cmd}"`);
   }
   return {
     unanswered,
+    calls,
     handle(cmd, args) {
+      calls.push(cmd);
       if (!(cmd in handlers)) decline(cmd, cmd);
       const callArgs = asCommandArgs(args);
       const answer = handlers[cmd](callArgs);

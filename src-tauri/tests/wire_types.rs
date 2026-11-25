@@ -24,11 +24,14 @@ const REGENERATE_VAR: &str = "OFM_UPDATE_TS_TYPES";
 /// The types a Tauri command hands the frontend whole. Everything they reach is generated with
 /// them; a type is added here only when a command returns it and nothing listed already reaches it.
 fn visit_wire_roots(visitor: &mut impl TypeVisitor) {
+    visitor.visit::<openfootmanager_lib::WorldsLibrary>();
     visitor.visit::<ofm_core::game::Game>();
     visitor.visit::<ofm_core::slices::squad::SquadPlayer>();
     visitor.visit::<ofm_core::slices::team_selection::TeamSelectionRatings>();
     // `get_potential_opinion` returns it; nothing in `Game` reaches it.
     visitor.visit::<ofm_core::potential_opinion::PotentialOpinion>();
+    // `get_player_career` returns it; nothing in `Game` reaches it.
+    visitor.visit::<ofm_core::player_career::PlayerCareer>();
     // `get_position_ratings` returns it; nothing in `Game` reaches it.
     visitor.visit::<ofm_core::position_ratings::PositionRatings>();
     // `get_familiarity` returns it; nothing in `Game` reaches it.
@@ -40,6 +43,8 @@ fn visit_wire_roots(visitor: &mut impl TypeVisitor) {
     // `get_managers_page` returns the first and takes the second; nothing in `Game` reaches them.
     visitor.visit::<ofm_core::slices::managers::ManagersPage>();
     visitor.visit::<ofm_core::slices::managers::ManagersStatus>();
+    // `get_custom_tactic_differences` returns it; nothing in `Game` reaches it.
+    visitor.visit::<ofm_core::custom_tactics::TacticDifferences>();
 }
 
 /// `u64` would otherwise be `bigint`, but `JSON.parse` hands the screen a `number`.

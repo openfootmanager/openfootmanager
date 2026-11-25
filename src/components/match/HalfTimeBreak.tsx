@@ -122,9 +122,6 @@ export default function HalfTimeBreak({
 
   const handleDeliverTalk = async () => {
     if (!selectedTalk || talkPending) return;
-    const userScore = userSide === "Home" ? snapshot.home_score : snapshot.away_score;
-    const oppScore = userSide === "Home" ? snapshot.away_score : snapshot.home_score;
-    const context = userScore > oppScore ? "winning" : userScore < oppScore ? "losing" : "drawing";
     setTalkPending(true);
     setTalkError(null);
     try {
@@ -136,7 +133,7 @@ export default function HalfTimeBreak({
           new_morale: number;
           delta: number;
         }[]
-      >("apply_team_talk", { tone: selectedTalk, context });
+      >("apply_team_talk", { tone: selectedTalk });
       setTalkResults(results);
       // Delivered only once the backend applied it: a refused talk (the career changed, say)
       // moved no morale, so the choices must stay for another try.

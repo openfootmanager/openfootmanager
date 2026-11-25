@@ -72,17 +72,13 @@ struct ManagerAwardContext<'a> {
     win_rate: f64,
 }
 
-fn free_agent_team_name() -> String {
-    ["Free", "Agent"].join(" ")
-}
-
 fn resolve_team_info(game: &Game, player: &Player) -> (String, String) {
     let team_name = player
         .team_id
         .as_ref()
         .and_then(|team_id| game.teams.iter().find(|team| &team.id == team_id))
         .map(|team| team.name.clone())
-        .unwrap_or_else(free_agent_team_name);
+        .unwrap_or_default();
     let team_id = player.team_id.clone().unwrap_or_default();
 
     (team_id, team_name)
@@ -160,7 +156,7 @@ fn build_player_award_contexts<'a>(
         .iter()
         .filter_map(|player| {
             let stats = match division {
-                Some(division) => player.league_stats_by_competition.get(&division.id)?,
+                Some(division) => player.division_stats(&division.id)?,
                 None => &player.stats,
             };
             if stats.appearances == 0 {
@@ -1318,7 +1314,7 @@ mod tests {
         assert_eq!(awards.clean_sheet_king.len(), 2);
         assert_eq!(awards.clean_sheet_king[0].player_id, "free-agent-gk");
         assert_eq!(awards.clean_sheet_king[0].team_id, "");
-        assert_eq!(awards.clean_sheet_king[0].team_name, "Free Agent");
+        assert_eq!(awards.clean_sheet_king[0].team_name, "");
         assert!(
             awards
                 .clean_sheet_king

@@ -70,7 +70,8 @@ export function buildFinanceSnapshotKey(
     (player) =>
       player.team_id === myTeam.id ||
       player.active_loan?.parent_team_id === myTeam.id ||
-      player.active_loan?.loan_team_id === myTeam.id,
+      player.active_loan?.loan_team_id === myTeam.id ||
+      player.transfer_offers?.some((offer) => offer.from_team_id === myTeam.id),
   );
   const teamStaff = gameState.staff.filter((staffMember) => staffMember.team_id === myTeam.id);
   return [
@@ -79,6 +80,12 @@ export function buildFinanceSnapshotKey(
     myTeam.finance,
     myTeam.wage_budget,
     myTeam.transfer_budget,
+    JSON.stringify(
+      gameState.players.flatMap(
+        (player) =>
+          player.transfer_offers?.filter((offer) => offer.from_team_id === myTeam.id) ?? [],
+      ),
+    ),
     myTeam.season_income,
     myTeam.season_expenses,
     myTeam.facilities?.training ?? DEFAULT_FACILITIES.training,

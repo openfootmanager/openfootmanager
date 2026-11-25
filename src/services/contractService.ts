@@ -35,6 +35,33 @@ export interface ContractTerminationPreviewData {
   player_name: string;
   severance_cost: number;
   squad_safety: SquadSafetyReportData;
+  /**
+   * Why the squad floor would refuse the release, as the translation-key error the backend would
+   * return (`resolveBackendError` turns it into words); `null` when the club keeps the floor.
+   */
+  squad_floor_refusal: string | null;
+}
+
+/**
+ * What a contract does to the club's books. The "annual" names carry WEEKLY amounts (the backend
+ * sets the bill equal to the weekly spend and the budget is on the same scale); they are not renamed
+ * here (#300, money unit conventions), and the screens label them weekly.
+ */
+export interface RenewalProjection {
+  current_annual_wage_bill: number;
+  projected_annual_wage_bill: number;
+  annual_wage_budget: number;
+  annual_soft_cap: number;
+  current_weekly_wage_spend: number;
+  projected_weekly_wage_spend: number;
+  current_cash_runway_weeks: number | null;
+  projected_cash_runway_weeks: number | null;
+  currently_over_budget: boolean;
+  policy_allows: boolean;
+}
+
+export interface RenewalProjectionResponseData {
+  projection: RenewalProjection;
 }
 
 export interface ContractExitIntentResponseData {
@@ -82,5 +109,16 @@ export async function terminateContractNow(
 ): Promise<ContractTerminationResponseData> {
   return invokeForCareer<ContractTerminationResponseData>("terminate_contract_now", {
     playerId,
+  });
+}
+
+/** The club's wage bill, budget and cash runway with `weeklyWage` in place of his own: his own player's only. */
+export async function previewRenewalProjection(
+  playerId: string,
+  weeklyWage: number,
+): Promise<RenewalProjectionResponseData> {
+  return invoke<RenewalProjectionResponseData>("preview_renewal_financial_impact", {
+    playerId,
+    weeklyWage,
   });
 }

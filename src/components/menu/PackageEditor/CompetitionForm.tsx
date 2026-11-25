@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ImagePlus, Plus, X } from "lucide-react";
+import { ImagePlus, X } from "lucide-react";
 import { LabeledInput, LabeledSelect, labelClass, inputClass } from "./primitives";
 import { useAssetPicker } from "./useAssetPicker";
 import { Select } from "../../ui/Select";
 import { EntityFormShell } from "./shared";
 import { CompetitionPreviewCard } from "./CompetitionPreviewCard";
+import { TeamAddPicker } from "./TeamAddPicker";
 import {
   COMPETITION_FORMATS,
   COMPETITION_SCOPES,
@@ -87,35 +88,11 @@ export function CompetitionForm({
   const [explicitTeams, setExplicitTeams] = useState<string[]>(editing.participants.explicit ?? []);
   const [selector, setSelector] = useState<SelectorSpec>(selectorFromComp(editing));
 
-  const [teamPickerOpen, setTeamPickerOpen] = useState(false);
-  const [teamSearch, setTeamSearch] = useState("");
-  const teamPickerRef = useRef<HTMLDivElement>(null);
-
   const teamCountries = useMemo(
     () => [...new Set(teams?.map((t) => t.country).filter(Boolean) ?? [])].sort(),
     [teams],
   );
   const teamsWithIds = teams?.filter((t) => t.id) ?? [];
-  const availableTeams = useMemo(
-    () =>
-      teamsWithIds
-        .filter((t) => !explicitTeams.includes(t.id))
-        .filter(
-          (t) => !teamSearch || (t.name || t.id).toLowerCase().includes(teamSearch.toLowerCase()),
-        ),
-    [teamsWithIds, explicitTeams, teamSearch],
-  );
-
-  useEffect(() => {
-    if (!teamPickerOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (teamPickerRef.current && !teamPickerRef.current.contains(e.target as Node)) {
-        setTeamPickerOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [teamPickerOpen]);
 
   function handleNameChange(v: string) {
     updateField("name", v);
@@ -390,63 +367,7 @@ export function CompetitionForm({
 
               {/* Add team picker */}
               {teamsWithIds.length > 0 ? (
-                <div className="relative" ref={teamPickerRef}>
-                  <button
-                    type="button"
-                    disabled={availableTeams.length === 0 && !teamPickerOpen}
-                    onClick={() => {
-                      setTeamSearch("");
-                      setTeamPickerOpen((o) => !o);
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-gray-300 dark:border-navy-500 text-sm text-gray-500 dark:text-gray-400 hover:border-primary-400 hover:text-primary-500 dark:hover:border-primary-500 dark:hover:text-primary-400 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    <Plus className="w-4 h-4" />
-                    {t("worldEditor.addTeam")}
-                  </button>
-
-                  {teamPickerOpen && (
-                    <div className="absolute top-full left-0 z-50 mt-1 min-w-56 rounded-xl border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 shadow-xl">
-                      <div className="p-2 border-b border-gray-100 dark:border-navy-600">
-                        <input
-                          type="text"
-                          // biome-ignore lint/a11y/noAutofocus: the search field only exists while the team picker is open.
-                          autoFocus
-                          placeholder={t("worldEditor.searchTeams")}
-                          value={teamSearch}
-                          onChange={(e) => setTeamSearch(e.target.value)}
-                          className="w-full rounded-md border border-gray-200 dark:border-navy-600 bg-gray-50 dark:bg-navy-800 px-3 py-1.5 text-sm text-gray-900 dark:text-white outline-none focus:border-primary-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"
-                        />
-                      </div>
-                      <div className="max-h-48 overflow-y-auto py-1">
-                        {availableTeams.length === 0 ? (
-                          <p className="px-3 py-2 text-xs text-gray-400 dark:text-gray-500 italic">
-                            {t("menu.noResults")}
-                          </p>
-                        ) : (
-                          availableTeams.map((team) => (
-                            <button
-                              key={team.id}
-                              type="button"
-                              onMouseDown={(e) => {
-                                e.preventDefault();
-                                addExplicitTeam(team.id);
-                                setTeamPickerOpen(false);
-                              }}
-                              className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-navy-600 text-left"
-                            >
-                              <span className="flex-1 truncate">{team.name || team.id}</span>
-                              {team.country && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-navy-700 text-gray-500 dark:text-gray-400 flex-shrink-0">
-                                  {team.country}
-                                </span>
-                              )}
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <TeamAddPicker teams={teamsWithIds} taken={explicitTeams} onAdd={addExplicitTeam} />
               ) : (
                 <p className="text-xs text-gray-400 dark:text-gray-500 italic">
                   {t("worldEditor.noClubSelected")}

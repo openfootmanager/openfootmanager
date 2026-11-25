@@ -1,15 +1,80 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
-import { savePackageProject, validatePackageProject } from "./packageEditorService";
+import {
+  getWorldsLibrary,
+  savePackageProject,
+  validatePackageProject,
+} from "./packageEditorService";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
 const invokeMock = vi.mocked(invoke);
 
+/** Given recent paths, when the library is requested, then the IPC receives every path. */
+it("passes recent paths to the worlds library command", async () => {
+  invokeMock.mockReset();
+  invokeMock.mockResolvedValue({ projects: [], installed: [] });
+  await getWorldsLibrary(["/a", "/b"]);
+  expect(invokeMock).toHaveBeenCalledWith("get_worlds_library", { paths: ["/a", "/b"] });
+});
+
+/** Given the library command fails, when it is requested, then the error reaches the caller. */
+it("propagates a worlds library error", async () => {
+  invokeMock.mockReset();
+  invokeMock.mockRejectedValue("be.error.invalidPath");
+  await expect(getWorldsLibrary(["/a"])).rejects.toBe("be.error.invalidPath");
+});
+
 describe("validatePackageProject", () => {
   beforeEach(() => {
     invokeMock.mockReset();
+    localStorage.clear();
+  });
+
+  /** Given stored recents, when Validate returns, then the caller owns the only persistence update. */
+  it("does not write recent projects while fetching validation", async () => {
+    localStorage.setItem(
+      "worldEditor.recentProjects",
+      JSON.stringify([{ path: "/p", name: "P", openedAt: "old" }]),
+    );
+    const write = vi.spyOn(Storage.prototype, "setItem");
+    invokeMock.mockResolvedValue({ issues: [], warnings: [] });
+    try {
+      await validatePackageProject("/p");
+      expect(write).not.toHaveBeenCalled();
+    } finally {
+      write.mockRestore();
+    }
+  });
+
+  /** Given diagnostics omit warnings, when Validate returns, then its issues still reach the caller. */
+  it("returns diagnostics when warnings are absent", async () => {
+    invokeMock.mockResolvedValue({ issues: [{ code: "x" }] });
+    await expect(validatePackageProject("/p")).resolves.toEqual({
+      issues: [{ code: "x" }],
+      warnings: [],
+    });
+  });
+
+  /** Given storage cannot be read, when Validate succeeds, then its findings still reach the editor. */
+  it("returns findings when recent-project storage is unavailable", async () => {
+    const read = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("storage unavailable");
+    });
+    invokeMock.mockResolvedValue({ issues: [], warnings: [] });
+    try {
+      await expect(validatePackageProject("/p")).resolves.toEqual({ issues: [], warnings: [] });
+    } finally {
+      read.mockRestore();
+    }
+  });
+
+  /** Given stored JSON is not a list, when Validate succeeds, then its findings still reach the editor. */
+  it("returns findings when recent-project storage is not a list", async () => {
+    localStorage.setItem("worldEditor.recentProjects", "{}");
+    invokeMock.mockResolvedValue({ issues: [], warnings: [] });
+    await expect(validatePackageProject("/p")).resolves.toEqual({ issues: [], warnings: [] });
   });
 
   /**

@@ -211,6 +211,7 @@ mod tests {
             appearances,
             goals: 0,
             assists: 0,
+            ..Default::default()
         }
     }
 

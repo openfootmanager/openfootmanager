@@ -23,7 +23,7 @@ describe("contractExpiryLabel", () => {
    */
   it("writes the expiry date in English for an English game", () => {
     expect(contractExpiryLabel("2028-06-30", "en", t)).toBe(
-      "finances.contractExpiresOn: June 30, 2028",
+      "finances.contractExpiresOn: 30 June 2028",
     );
   });
 });

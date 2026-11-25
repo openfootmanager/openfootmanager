@@ -6,7 +6,25 @@ import {
   readHarnessLanguage,
   readHarnessPage,
   readHarnessProfile,
+  readHarnessWorlds,
 } from "./harnessPage";
+
+describe("readHarnessWorlds", () => {
+  /**
+   * Given ?page=worlds with a library, or without one
+   * When it is read
+   * Then the World Editor's home is mounted with that library, a populated one by default; any other
+   *      page is not the worlds page.
+   */
+  it("reads the World Editor's home and the library it opens on", () => {
+    expect(readHarnessWorlds("?page=worlds")).toBe("populated");
+    expect(readHarnessWorlds("?theme=dark&page=worlds&library=empty")).toBe("empty");
+    expect(readHarnessWorlds("?page=worlds&library=nonsense")).toBe("populated");
+    expect(readHarnessWorlds("?page=squad")).toBeNull();
+    expect(readHarnessWorlds("?theme=dark")).toBeNull();
+    expect(readHarnessPage("?page=worlds")).toBeNull();
+  });
+});
 
 describe("readHarnessLanguage", () => {
   /** Given ?lang=de, then the page renders in German, the longest labels the layout check measures. */
@@ -29,6 +47,11 @@ describe("readHarnessPage", () => {
     expect(readHarnessPage("?page=home")).toBe("home");
   });
 
+  /** Given ?page=tactics, then the dashboard opens on the Tactics tab, the redesign's first screen. */
+  it("reads the tactics page", () => {
+    expect(readHarnessPage("?page=tactics")).toBe("tactics");
+  });
+
   /** Given each world list's page, then the dashboard opens on that tab. */
   it("reads the world lists: players, teams, managers and staff", () => {
     expect(readHarnessPage("?page=players")).toBe("players");
@@ -46,7 +69,7 @@ describe("readHarnessPage", () => {
   /** Given no page, or one the harness doesn't know, then the style guide itself renders. */
   it("leaves the style guide alone otherwise", () => {
     expect(readHarnessPage("?theme=dark")).toBeNull();
-    expect(readHarnessPage("?page=tactics")).toBeNull();
+    expect(readHarnessPage("?page=training")).toBeNull();
   });
 });
 
@@ -59,9 +82,19 @@ describe("readHarnessPage: the player profile", () => {
 });
 
 describe("readHarnessProfile", () => {
-  /** Given each of the five knowledge states the club can have of a player, then that one is read. */
+  /** Given each of the states the club can have of a player, then that one is read. */
   it("reads each state the profile can be in", () => {
-    expect(HARNESS_PROFILES).toEqual(["own", "rival", "scouted", "unknown", "retired"]);
+    expect(HARNESS_PROFILES).toEqual([
+      "own",
+      "keeper",
+      "injured",
+      "loaned",
+      "rival",
+      "scouted",
+      "unknown",
+      "freeAgent",
+      "retired",
+    ]);
     for (const player of HARNESS_PROFILES) {
       expect(readHarnessProfile(`?page=profile&player=${player}`)).toBe(player);
     }

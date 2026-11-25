@@ -1,3 +1,4 @@
+mod career_history;
 mod club_league;
 mod player_statistics;
 use crate::game::Game;
@@ -42,10 +43,6 @@ pub fn has_full_schedule(league: &League) -> bool {
         }
         None => false,
     }
-}
-
-fn free_agent_team_name() -> String {
-    ["Free", "Agent"].join(" ")
 }
 
 /// Returns true if at least one competitive fixture has been completed or any
@@ -771,7 +768,7 @@ fn manage_international_calendar(
 /// The division the season's rollover finishes on: the user's, else a world league, or the legacy
 /// mirror. A manager with no followed league still needs the world season to roll over; the mirror
 /// alone may point at a cup in a modern world.
-fn rollover_division(game: &Game) -> Option<&League> {
+pub(crate) fn rollover_division(game: &Game) -> Option<&League> {
     user_division(game)
         .or_else(|| {
             game.competitions
@@ -825,6 +822,21 @@ fn notify_user_division_change(
     // the frontend name it in the player's language (a hand-made division has no key).
     let division_key = new_division.name_key.clone();
     let division_country = new_division.country_id.clone();
+    let division_tier = new_division
+        .calendar
+        .as_ref()
+        .and_then(|calendar| calendar.season.division.as_ref())
+        .map(|division| division.tier)
+        .filter(|tier| *tier > 0);
+    let division_phase = new_division
+        .calendar
+        .as_ref()
+        .and_then(|calendar| calendar.season.division.as_ref())
+        .and_then(|division| match division.phase {
+            domain::competition_calendar::SeasonPhase::Annual => None,
+            domain::competition_calendar::SeasonPhase::Opening => Some("opening"),
+            domain::competition_calendar::SeasonPhase::Closing => Some("closing"),
+        });
     // The renewed edition's own label: a delayed edition renews to the calendar year, which is not
     // always last season plus one.
     let renewed_season = new_division.season;
@@ -840,8 +852,14 @@ fn notify_user_division_change(
     if let Some(key) = division_key {
         params.insert("divisionKey".to_string(), key);
         params.insert("divisionSeason".to_string(), renewed_season.to_string());
+        if let Some(tier) = division_tier {
+            params.insert("divisionTier".to_string(), tier.to_string());
+        }
         if let Some(country) = division_country {
             params.insert("divisionCountry".to_string(), country);
+        }
+        if let Some(phase) = division_phase {
+            params.insert("divisionPhase".to_string(), phase.to_string());
         }
     }
 
@@ -1094,26 +1112,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     }
 
     // 5. Record player career entries and reset stats
-    for player in game.players.iter_mut() {
-        if player.stats.appearances > 0 {
-            let team_name = player
-                .team_id
-                .as_ref()
-                .and_then(|tid| game.teams.iter().find(|t| &t.id == tid))
-                .map(|t| t.name.clone())
-                .unwrap_or_else(free_agent_team_name);
-            let team_id = player.team_id.clone().unwrap_or_default();
-
-            player.career.push(domain::player::CareerEntry {
-                season,
-                team_id,
-                team_name,
-                appearances: player.stats.appearances,
-                goals: player.stats.goals,
-                assists: player.stats.assists,
-            });
-        }
-    }
+    career_history::record_season_career_entries(game, season);
 
     apply_season_end_squad_turnover(game, game.clock.current_date.date_naive(), season);
 

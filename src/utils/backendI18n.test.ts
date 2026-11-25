@@ -419,7 +419,7 @@ describe("resolveMessage", () => {
 
     expect(result.subject).toBe("Transfer registration failed: Golden Boot");
     expect(result.body).toContain("Golden Boot to Alpha FC for £688,001");
-    expect(result.body).toContain("July 2, 2026");
+    expect(result.body).toContain("2 July 2026");
     expect(result.body).not.toContain("2026-07-02");
     expect(result.body).toContain("No transfer fee was paid.");
     expect(result.body).not.toContain("800001");
@@ -534,59 +534,6 @@ describe("resolveMessage", () => {
     );
 
     expect(text).toBe("Season 1 prize money for 3rd place");
-  });
-
-  // Given a promotion notice for a generated division (stored under its English template name),
-  // when rendered in German, then the division reads as the locale names it, not in English.
-  it("names a promoted-to division in the player's language", async () => {
-    const previousLanguage = i18n.language;
-    await i18n.changeLanguage("de");
-    try {
-      const promotion = resolveMessage(
-        makeMessage({
-          subject_key: "be.msg.promotion.subject",
-          body_key: "be.msg.promotion.body",
-          i18n_params: {
-            division: "Germany Second Division",
-            divisionKey: "tournaments.competitions.secondDivision",
-            divisionCountry: "DE",
-            divisionSeason: "3",
-            season: "3",
-          },
-        }),
-      );
-      expect(promotion.subject).toContain("Deutschland Zweite Division");
-      expect(promotion.subject).not.toContain("Germany");
-      expect(promotion.body).toContain("Deutschland Zweite Division");
-    } finally {
-      await i18n.changeLanguage(previousLanguage);
-    }
-  });
-
-  // Given a relegation notice for a generated division, when rendered in German, then the division
-  // is named by the locale too (the relegation subject takes the same path as the promotion one).
-  it("names a relegated-to division in the player's language", async () => {
-    const previousLanguage = i18n.language;
-    await i18n.changeLanguage("de");
-    try {
-      const relegation = resolveMessage(
-        makeMessage({
-          subject_key: "be.msg.relegation.subject",
-          body_key: "be.msg.relegation.body",
-          i18n_params: {
-            division: "Germany Second Division",
-            divisionKey: "tournaments.competitions.secondDivision",
-            divisionCountry: "DE",
-            divisionSeason: "3",
-            season: "3",
-          },
-        }),
-      );
-      expect(relegation.subject).toContain("Deutschland Zweite Division");
-      expect(relegation.subject).not.toContain("Germany");
-    } finally {
-      await i18n.changeLanguage(previousLanguage);
-    }
   });
 
   // Given a promotion notice with no division key (a hand-made division, or an older save),
@@ -783,6 +730,44 @@ describe("resolveMessage", () => {
 // ---------------------------------------------------------------------------
 
 describe("resolveNewsArticle", () => {
+  /**
+   * Given a season-awards article whose Golden Boot winner was at no club, written as the
+   *      free-agent key (new) or as the English literal an older save stored
+   * When it is resolved in Spanish
+   * Then its body names "Agente Libre", never the English literal or an empty pair of brackets.
+   */
+  it.each([
+    ["the free-agent key", "common.freeAgent"],
+    ["the legacy English literal", "Free Agent"],
+    ["an empty name", ""],
+  ])(
+    "words a season-awards winner at no club in the player's language: %s",
+    async (_case, team) => {
+      const previousLanguage = i18n.language;
+      await i18n.changeLanguage("es");
+
+      try {
+        const article = makeNewsArticle({
+          body_key: "be.news.seasonAwards.bodyGoldenBootOnly",
+          i18n_params: {
+            season: "6",
+            goldenBootWinner: "Victor Vale",
+            goldenBootTeam: team,
+            goldenBootGoals: "24",
+          },
+        });
+
+        const result = resolveNewsArticle(article);
+
+        expect(result.body).toContain("Agente Libre");
+        expect(result.body).not.toContain("Free Agent");
+        expect(result.i18n_params?.goldenBootTeam).toBe("Agente Libre");
+      } finally {
+        await i18n.changeLanguage(previousLanguage);
+      }
+    },
+  );
+
   it("resolves all translatable fields with params", () => {
     const article = makeNewsArticle({
       headline: "raw",
@@ -1460,7 +1445,7 @@ describe("resolveBackendText", () => {
 
     const result = resolveBackendText("test.kickoff?start=2026-08-01", "fallback");
 
-    expect(result).toBe("Kicks off on August 1, 2026");
+    expect(result).toBe("Kicks off on 1 August 2026");
   });
 
   // The English assertion above passes even if the locale never reaches
@@ -1502,10 +1487,10 @@ describe("resolveBackendText", () => {
     );
 
     expect(resolveBackendText("test.kickoff?start=2026-01-01", "fallback")).toBe(
-      "Kicks off on January 1, 2026",
+      "Kicks off on 1 January 2026",
     );
     expect(resolveBackendText("test.kickoff?start=2026-12-31", "fallback")).toBe(
-      "Kicks off on December 31, 2026",
+      "Kicks off on 31 December 2026",
     );
   });
 
@@ -1610,7 +1595,7 @@ describe("accepted deal messages", () => {
       dealMessage("be.msg.transferAgreed.body", "be.msg.transferAgreed.subject"),
     );
     expect(message.subject).toBe("Transfer agreed: Golden Boot");
-    expect(message.body).toContain("July 2, 2026");
+    expect(message.body).toContain("2 July 2026");
     expect(message.body).toContain("€800,001");
     expect(message.body).toContain("Beta FC");
     expect(message.body).toContain("Alpha FC");
@@ -1631,8 +1616,8 @@ describe("accepted deal messages", () => {
       dealMessage("be.msg.loanAgreed.bodyWithOption", "be.msg.loanAgreed.subject"),
     );
     expect(message.subject).toBe("Loan agreed: Golden Boot");
-    expect(message.body).toContain("July 2, 2026");
-    expect(message.body).toContain("December 20, 2026");
+    expect(message.body).toContain("2 July 2026");
+    expect(message.body).toContain("20 December 2026");
     expect(message.body).toContain("70%");
     expect(message.body).toContain("£688,001");
   });
@@ -1642,7 +1627,7 @@ describe("accepted deal messages", () => {
       dealMessage("be.msg.loanAgreed.bodyNoOption", "be.msg.loanAgreed.subject"),
     );
     expect(message.body).toContain("No purchase option");
-    expect(message.body).toContain("December 20, 2026");
+    expect(message.body).toContain("20 December 2026");
     expect(message.body).not.toContain("800");
   });
   // Given German settings, when a loan notice is read, then both dates follow the German locale.

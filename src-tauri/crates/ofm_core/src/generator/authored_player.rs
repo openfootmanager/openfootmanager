@@ -9,8 +9,8 @@
 
 use super::MIN_OPENING_YEAR;
 use super::package::{PackageError, PlayerDef, UNKNOWN_TEAM};
-use crate::contracts::{MAX_CONTRACT_YEARS, parse_contract_date};
-use chrono::{Months, NaiveDate};
+use crate::contracts::{MAX_CONTRACT_YEARS, contract_end_after, parse_contract_date};
+use chrono::NaiveDate;
 use domain::player::{WEAK_FOOT_MAX, WEAK_FOOT_MIN};
 use std::collections::HashSet;
 
@@ -47,16 +47,6 @@ fn parse_authored_date(field: &'static str, value: &str) -> Result<NaiveDate, Co
         return Err(ContractError::InvalidDate(field));
     }
     parse_contract_date(value).ok_or(ContractError::InvalidDate(field))
-}
-
-fn add_years(
-    start: NaiveDate,
-    years: u32,
-    field: &'static str,
-) -> Result<NaiveDate, ContractError> {
-    start
-        .checked_add_months(Months::new(years.saturating_mul(12)))
-        .ok_or(ContractError::InvalidDate(field))
 }
 
 /// Whether `value` is a date of birth exactly as the package format writes it, `YYYY-MM-DD`.
@@ -110,7 +100,7 @@ pub(super) fn independent_contract_problems(def: &PlayerDef) -> Vec<ContractErro
 ///
 /// - An end date is kept exactly. It is correct for the period it was written for
 ///   and nowhere else, which is the author's choice to make.
-/// - A length counts whole years from the start when there is one, and otherwise
+/// - A length counts from the start year when there is one, and otherwise
 ///   from the year the career opens in, ending on 30 June as every generated
 ///   contract does. That is what lets one package be played in any era.
 /// - A start on its own is half an interval. Rather than invent an end, the length
@@ -138,11 +128,18 @@ pub(super) fn resolve_authored_contract(
     let end = match (end, def.contract_length, start) {
         (Some(end), _, _) => Some(end),
         (None, Some(length), start) => Some(match start {
-            Some(start) => add_years(start, length, "contractStart")?,
-            None => NaiveDate::from_ymd_opt(opening_year.saturating_add(length) as i32, 6, 30)
+            Some(start) => contract_end_after(start, length)
+                .ok_or(ContractError::InvalidDate("contractStart"))?,
+            None => i32::try_from(opening_year)
+                .ok()
+                .and_then(|year| NaiveDate::from_ymd_opt(year, 1, 1))
+                .and_then(|start| contract_end_after(start, length))
                 .ok_or(ContractError::InvalidDate("contractLength"))?,
         }),
-        (None, None, Some(start)) => Some(add_years(start, rolled_years, "contractStart")?),
+        (None, None, Some(start)) => Some(
+            contract_end_after(start, rolled_years)
+                .ok_or(ContractError::InvalidDate("contractStart"))?,
+        ),
         (None, None, None) => None,
     };
 
@@ -350,31 +347,38 @@ mod tests {
         assert_eq!(resolved.start, None);
     }
 
+    /// Given a player whose new contract length is agreed
+    /// When the real signing or generation entry point completes
+    /// Then the calculated employment contract ends on 30 June.
     #[test]
-    fn a_length_with_a_start_counts_whole_years_from_it() {
+    fn a_length_with_a_start_ends_on_30_june() {
         let resolved =
             resolve(serde_json::json!({ "contractStart": "2024-01-15", "contractLength": 2 }))
                 .unwrap();
         assert_eq!(resolved.start, Some(day(2024, 1, 15)));
-        assert_eq!(resolved.end, Some(day(2026, 1, 15)));
+        assert_eq!(resolved.end, Some(day(2026, 6, 30)));
     }
 
-    /// 29 February plus a year has no 29 February to land on. chrono clamps to the
-    /// 28th, which is the only sensible answer and worth pinning.
+    /// Given a one-year deal signed on leap day
+    /// When the authored length is resolved
+    /// Then it ends on 30 June of the following year.
     #[test]
-    fn a_leap_day_start_lands_on_the_28th_a_year_later() {
+    fn a_leap_day_start_ends_on_30_june_next_year() {
         let resolved =
             resolve(serde_json::json!({ "contractStart": "2024-02-29", "contractLength": 1 }))
                 .unwrap();
-        assert_eq!(resolved.end, Some(day(2025, 2, 28)));
+        assert_eq!(resolved.end, Some(day(2025, 6, 30)));
     }
 
+    /// Given a player whose new contract length is agreed
+    /// When the real signing or generation entry point completes
+    /// Then the calculated employment contract ends on 30 June.
     #[test]
     fn a_start_alone_rolls_the_generated_length_from_it() {
         // `resolve` passes a rolled length of 3.
         let resolved = resolve(serde_json::json!({ "contractStart": "2024-01-15" })).unwrap();
         assert_eq!(resolved.start, Some(day(2024, 1, 15)));
-        assert_eq!(resolved.end, Some(day(2027, 1, 15)));
+        assert_eq!(resolved.end, Some(day(2027, 6, 30)));
     }
 
     #[test]

@@ -1,18 +1,19 @@
 import type { JSX } from "react";
 import { useCallback, useState } from "react";
 import type { GameStateData, PlayerSelectionOptions } from "../../store/gameStore";
+import type { PlayerRole } from "../../store/types";
 import { useTranslation } from "react-i18next";
 import { setPlayerRole } from "../../services/squadService";
 import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 
-import TacticsPitch from "./TacticsPitch";
-import TacticsPlayerList from "./TacticsPlayerList";
+import TacticsLineupSection from "./TacticsLineupSection";
+import { effectivePlayerRoles } from "./TacticsTab.helpers";
 import TacticsSetPieces from "./TacticsSetPieces";
 import TacticsWorkbench from "./TacticsWorkbench";
 import TacticsCommandBar from "./TacticsCommandBar";
-import TacticsCompareDialog from "./TacticsCompareDialog";
+import TacticsDialogs from "./TacticsDialogs";
+import { usePresetChoice } from "./usePresetChoice";
 import { useTacticsLibrary } from "./useTacticsLibrary";
-import { useTacticsFilters } from "./useTacticsFilters";
 import { useTacticsLineup } from "./useTacticsLineup";
 
 interface TacticsTabProps {
@@ -41,6 +42,7 @@ export default function TacticsTab({
     [onGameUpdateProp],
   );
 
+  const lineupState = useTacticsLineup({ gameState, onGameUpdate, onWriteError });
   const {
     team,
     formation,
@@ -48,54 +50,40 @@ export default function TacticsTab({
     initialPreset,
     roster,
     startingXI,
-    bench,
-    xiActivePosition,
-    pitchSlots,
-    outOfPositionCount,
-    effectiveMatchRoles,
     autoSetPieces,
     selectedPlayer,
     comparePlayer,
-    selectedPlayerId,
-    comparePlayerId,
     canConfirmSwap,
-    dragState,
-    hoveredSlot,
-    dragPreviewRef,
+    swapBlockedReason,
     handleFormationChange,
     handlePlayStyleChange,
     handleApplyTacticPreset,
-    handleAssignBestFit,
-    handlePromoteBenchPlayer,
-    handleDemoteStarter,
     clearLineupSelection,
-    handleDragStart,
-    handleSlotDragOver,
-    handleSlotDragLeave,
-    handleSlotDrop,
-    handleLineupPlayerClick,
     handleConfirmSwap,
-    resetDragState,
-    handleAssignMatchRole,
     handleTacticsPhaseChange,
     lineupReady,
-    familiarity,
-  } = useTacticsLineup({ gameState, onGameUpdate, onWriteError });
+    lineup,
+  } = lineupState;
 
-  const {
-    playerSearch,
-    setPlayerSearch,
-    positionFilter,
-    setPositionFilter,
-    filteredStartingXI,
-    filteredBench,
-    handleClearFilters,
-  } = useTacticsFilters({ startingXI, bench, xiActivePosition });
+  // The roles shown in the table and on the pitch: the match's own (the lineup's), not a stored one
+  // a move to another slot left stale.
+  const effectiveRoles = effectivePlayerRoles(lineup, team?.player_roles);
+
+  // A role chosen in the table or on the pitch: one write, and a refusal is shown, not only logged.
+  function changePlayerRole(playerId: string, role: PlayerRole) {
+    void setPlayerRole(playerId, role)
+      .then(onGameUpdate)
+      .catch((error: unknown) => {
+        console.error("Failed to set player role:", error);
+        onWriteError(error);
+      });
+  }
 
   const {
     activeTactic,
     tacticLibrary,
     isCommandBarDirty,
+    libraryLoaded,
     canResetTactic,
     handleResetTactic,
     applyTacticSelection,
@@ -104,16 +92,25 @@ export default function TacticsTab({
     handleSaveTactic,
     canDeleteTactic,
     handleDeleteTactic,
+    canRenameTactic,
+    handleRenameTactic,
   } = useTacticsLibrary({
     gameState,
     formation,
     activePlayStyle,
     initialPreset,
     onApplyPreset: handleApplyTacticPreset,
+    onKeepInstructions: (nextFormation, playStyle) =>
+      handleApplyTacticPreset(nextFormation, playStyle, { keepInstructions: true }),
     onGameUpdate,
     onWriteError,
     onWriteSaved: () => setWriteError(null),
   });
+
+  const presetChoice = usePresetChoice(
+    (tactic, keepInstructions) => applyTacticSelection(tactic, { keepInstructions }),
+    `${formation}|${activePlayStyle}`,
+  );
 
   if (!team) {
     return <p className="text-gray-500 dark:text-gray-400">{t("common.noTeam")}</p>;
@@ -123,11 +120,6 @@ export default function TacticsTab({
     // The tab fills the workspace (it is one of `tabFillsWorkspace`'s): its regions scroll, the page
     // doesn't.
     <div className="flex min-h-0 w-full flex-1 flex-col gap-4">
-      <div
-        ref={dragPreviewRef}
-        aria-hidden="true"
-        className="pointer-events-none fixed -left-20 top-0 h-8 w-8 rounded-full border border-white/15 bg-navy-900/90 shadow-lg"
-      />
       {writeError ? (
         <p
           role="alert"
@@ -141,18 +133,25 @@ export default function TacticsTab({
         activePlayStyle={activePlayStyle}
         formation={formation}
         isDirty={isCommandBarDirty}
+        libraryLoaded={libraryLoaded}
         canReset={canResetTactic}
         onReset={() => {
+          presetChoice.invalidate();
           void handleResetTactic();
         }}
         canDelete={canDeleteTactic}
+        canRename={canRenameTactic}
+        onRename={handleRenameTactic}
         onCreateNew={handleCreateCustomTactic}
         onDelete={handleDeleteTactic}
         onDuplicate={handleDuplicateTactic}
         onFormationChange={(nextFormation) => {
+          // At the edit, not when its write lands: the setupKey check cannot see it until the reply.
+          presetChoice.invalidate();
           void handleFormationChange(nextFormation);
         }}
         onPlayStyleChange={(playStyle) => {
+          presetChoice.invalidate();
           void handlePlayStyleChange(playStyle);
         }}
         onSave={handleSaveTactic}
@@ -162,7 +161,7 @@ export default function TacticsTab({
             return;
           }
 
-          void applyTacticSelection(nextTactic);
+          void presetChoice.choose(nextTactic);
         }}
         tacticLibrary={tacticLibrary}
       />
@@ -189,103 +188,25 @@ export default function TacticsTab({
           />
         }
       >
-        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[260px_1fr] xl:items-start">
-          {/* Left: player list */}
-          <TacticsPlayerList
-            bench={filteredBench}
-            comparePlayerId={comparePlayerId}
-            dragState={dragState}
-            matchRoles={effectiveMatchRoles}
-            onAssignMatchRole={(role, playerId) => {
-              void handleAssignMatchRole(role, playerId);
-            }}
-            onClearFilters={handleClearFilters}
-            onDemoteStarter={(playerId) => {
-              void handleDemoteStarter(playerId);
-            }}
-            onDragEnd={resetDragState}
-            onDragStart={handleDragStart}
-            onOpenPlayerProfile={onSelectPlayer}
-            onPlayerSearchChange={setPlayerSearch}
-            onPositionFilterChange={setPositionFilter}
-            onPromoteBench={(playerId) => {
-              void handlePromoteBenchPlayer(playerId);
-            }}
-            onTacticalSelect={(playerId, section) => {
-              void handleLineupPlayerClick(playerId, section);
-            }}
-            playerSearch={playerSearch}
-            positionFilter={positionFilter}
-            selectedPlayerId={selectedPlayerId}
-            starters={filteredStartingXI}
-            xiActivePosition={xiActivePosition}
-          />
-
-          {/* Center: pitch */}
-          <TacticsPitch
-            familiarity={familiarity}
-            lineupReady={lineupReady}
-            dragState={dragState}
-            formation={formation}
-            comparePlayerId={comparePlayerId}
-            hoveredSlot={hoveredSlot}
-            matchRoles={effectiveMatchRoles}
-            onRoleChange={(playerId, role) => {
-              void setPlayerRole(playerId, role)
-                .then(onGameUpdate)
-                .catch((error: unknown) => {
-                  console.error("Failed to set player role:", error);
-                  onWriteError(error);
-                });
-            }}
-            playerRoles={team?.player_roles}
-            tacticsPhase={team?.tactics_phase}
-            onAssignBestFit={(playerId) => {
-              void handleAssignBestFit(playerId);
-            }}
-            onAssignMatchRole={(role, playerId) => {
-              void handleAssignMatchRole(role, playerId);
-            }}
-            onClearSelection={clearLineupSelection}
-            onDemoteStarter={(playerId) => {
-              void handleDemoteStarter(playerId);
-            }}
-            onDragEnd={resetDragState}
-            onDragStart={handleDragStart}
-            onLineupPlayerClick={(playerId, section) => {
-              void handleLineupPlayerClick(playerId, section);
-            }}
-            onOpenPlayerProfile={(playerId) => {
-              onSelectPlayer(playerId);
-            }}
-            onPromoteBench={(playerId) => {
-              void handlePromoteBenchPlayer(playerId);
-            }}
-            onSlotDragLeave={handleSlotDragLeave}
-            onSlotDragOver={handleSlotDragOver}
-            onSlotDrop={(event, slotIndex) => {
-              void handleSlotDrop(event, slotIndex);
-            }}
-            outOfPositionCount={outOfPositionCount}
-            pitchSlots={pitchSlots}
-            selectedPlayer={selectedPlayer}
-            selectedPlayerId={selectedPlayerId}
-          />
-        </div>
+        <TacticsLineupSection
+          state={lineupState}
+          playerRoles={effectiveRoles}
+          onRoleChange={changePlayerRole}
+          onSelectPlayer={onSelectPlayer}
+        />
       </TacticsWorkbench>
 
-      {/* Inspector modal — only when both players are selected for comparison */}
-      {selectedPlayer && comparePlayer && (
-        <TacticsCompareDialog
-          canConfirmSwap={canConfirmSwap}
-          comparePlayer={comparePlayer}
-          onClose={clearLineupSelection}
-          onConfirmSwap={() => {
-            void handleConfirmSwap();
-          }}
-          selectedPlayer={selectedPlayer}
-        />
-      )}
+      <TacticsDialogs
+        presetChoice={presetChoice}
+        selectedPlayer={selectedPlayer}
+        comparePlayer={comparePlayer}
+        canConfirmSwap={canConfirmSwap}
+        swapBlockedReason={swapBlockedReason}
+        onCloseCompare={clearLineupSelection}
+        onConfirmSwap={() => {
+          void handleConfirmSwap();
+        }}
+      />
     </div>
   );
 }

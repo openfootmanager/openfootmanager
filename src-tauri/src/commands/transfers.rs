@@ -904,8 +904,8 @@ mod tests {
         }
         let after = state.get_game(|game| game.clone()).unwrap();
         assert_eq!(
-            serde_json::to_value(&after).unwrap(),
-            serde_json::to_value(&before).unwrap()
+            crate::commands::game_json::game_json(&after),
+            crate::commands::game_json::game_json(&before)
         );
         assert!(make_transfer_bid_internal(&state, Career::Token(2), "player-2", 900_000).is_ok());
     }

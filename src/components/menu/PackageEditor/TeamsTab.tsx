@@ -3,9 +3,13 @@ import { useTranslation } from "react-i18next";
 import { Search } from "lucide-react";
 import { GeneratedCrest } from "../../ui/GeneratedCrest";
 import { useAssetDataUrl } from "../../../hooks/useAssetDataUrl";
-import { EntityListFooter, EntityListShell, EntityRow, ExportCsvButton } from "./shared";
-import { ENTITY_LIST_PAGE_SIZE, capRows } from "./entityList.helpers";
-import { useKeepRevealed } from "./entityList.reveal";
+import {
+  EntityListFooter,
+  EntityListShell,
+  EntityRow,
+  EntityRowList,
+  ExportCsvButton,
+} from "./shared";
 import type { TeamDef } from "./types";
 import { entityRowKey } from "./helpers";
 
@@ -57,8 +61,6 @@ export function TeamsTab({
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
 
-  const [visibleCount, setVisibleCount] = useState(ENTITY_LIST_PAGE_SIZE);
-
   const rows = useMemo(() => teams.map((team, i) => ({ team, i })), [teams]);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -73,19 +75,8 @@ export function TeamsTab({
         team.id.toLowerCase().includes(q),
     );
   }, [rows, query]);
-  const { visible } = capRows(
-    filtered,
-    visibleCount,
-    ENTITY_LIST_PAGE_SIZE,
-    ({ i }) => i === selectedIndex,
-  );
-  useKeepRevealed(visible.length, visibleCount, setVisibleCount);
-
-  // Reset here rather than in an effect: an effect would let the old, longer
-  // list render once before shrinking it, which is the cost being avoided.
   function handleQueryChange(next: string) {
     setQuery(next);
-    setVisibleCount(ENTITY_LIST_PAGE_SIZE);
   }
 
   return (
@@ -114,31 +105,31 @@ export function TeamsTab({
           </div>
         )
       }
-      footerSlot={
-        <EntityListFooter
-          shown={visible.length}
-          matches={filtered.length}
-          hasRecords={teams.length > 0}
-          onLoadMore={() => setVisibleCount((n) => n + ENTITY_LIST_PAGE_SIZE)}
-        />
-      }
+      footerSlot={<EntityListFooter matches={filtered.length} hasRecords={teams.length > 0} />}
     >
-      {visible.map(({ team, i }) => (
-        <EntityRow
-          key={entityRowKey(team.id, i)}
-          title={team.name}
-          subtitle={[team.city, team.country].filter(Boolean).join(" · ")}
-          badge={<TeamBadge team={team} projectDir={projectDir} />}
-          onEdit={() => onEdit(i)}
-          onDelete={() => onDelete(i)}
-          onDuplicate={onDuplicate ? () => onDuplicate(i) : undefined}
-          duplicateLabel={t("worldEditor.duplicateEntity")}
-          editLabel={t("worldEditor.editTeam")}
-          deleteLabel={t("worldEditor.deleteTeam")}
-          isSelected={selectedIndex === i}
-          onClick={onSelect ? () => onSelect(i) : undefined}
-        />
-      ))}
+      <EntityRowList
+        rows={filtered}
+        itemKey={({ team }) => entityRowKey(team)}
+        label={t("worldEditor.sectionTeams")}
+        selectedIndex={selectedIndex}
+        resetKey={query}
+        onSelect={onSelect}
+        renderRow={({ team, i }) => (
+          <EntityRow
+            title={team.name}
+            subtitle={[team.city, team.country].filter(Boolean).join(" · ")}
+            badge={<TeamBadge team={team} projectDir={projectDir} />}
+            onEdit={() => onEdit(i)}
+            onDelete={() => onDelete(i)}
+            onDuplicate={onDuplicate ? () => onDuplicate(i) : undefined}
+            duplicateLabel={t("worldEditor.duplicateEntity")}
+            editLabel={t("worldEditor.editTeam")}
+            deleteLabel={t("worldEditor.deleteTeam")}
+            isSelected={selectedIndex === i}
+            onClick={onSelect ? () => onSelect(i) : undefined}
+          />
+        )}
+      />
     </EntityListShell>
   );
 }

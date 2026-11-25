@@ -265,8 +265,7 @@ pub(crate) fn sign_free_agent(
     contract_years: u32,
     current_date: NaiveDate,
 ) -> Result<(), String> {
-    let new_contract_end = current_date
-        .checked_add_months(Months::new(contract_years * 12))
+    let new_contract_end = contract_end_after(current_date, contract_years)
         .ok_or(ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE.to_string())?;
     let resolved_jersey_number =
         crate::roster::resolve_jersey_for(game, &game.players[player_index], team);

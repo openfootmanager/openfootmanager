@@ -56,6 +56,29 @@ function renderCard(props: Partial<React.ComponentProps<typeof TournamentsAwardC
 }
 
 describe("TournamentsAwardCard", () => {
+  /**
+   * Given a leaderboard whose scorer was at no club when the season ended (no team id, no name)
+   * When the card is drawn
+   * Then his team line says "free agent" (translated), not an empty line.
+   */
+  it("words a leaderboard entry at no club as a free agent", () => {
+    renderCard({ entries: [playerEntry({ team_id: "", team_name: "" })] });
+
+    expect(screen.getByText("common.freeAgent")).toBeInTheDocument();
+  });
+
+  /**
+   * Given an older save's entry, which stored the English literal for a player at no club
+   * When the card is drawn
+   * Then it is worded the same way.
+   */
+  it("words the legacy stored literal as a free agent too", () => {
+    renderCard({ entries: [playerEntry({ team_id: "", team_name: "Free Agent" })] });
+
+    expect(screen.getByText("common.freeAgent")).toBeInTheDocument();
+    expect(screen.queryByText("Free Agent")).toBeNull();
+  });
+
   it("shows the empty text instead of a list when there are no entries", () => {
     renderCard({ entries: [] });
 

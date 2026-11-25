@@ -1,18 +1,9 @@
 import type { NegotiationFeedbackPanelData } from "../NegotiationFeedbackPanel";
 import { formatExactMoney } from "../../lib/helpers";
+import type { PlayerData } from "../../store/gameStore";
 
-export interface RenewalProjection {
-  current_annual_wage_bill: number;
-  projected_annual_wage_bill: number;
-  annual_wage_budget: number;
-  annual_soft_cap: number;
-  current_weekly_wage_spend: number;
-  projected_weekly_wage_spend: number;
-  current_cash_runway_weeks: number | null;
-  projected_cash_runway_weeks: number | null;
-  currently_over_budget: boolean;
-  policy_allows: boolean;
-}
+export type { RenewalProjection } from "../../services/contractService";
+import type { RenewalProjection } from "../../services/contractService";
 
 export type NegotiationFeedbackData = NegotiationFeedbackPanelData;
 
@@ -107,18 +98,18 @@ export function getRenewalStatusMessage(
 
 export function getRenewalStatusClassName(renewalStatus: RenewalStatus): string {
   if (renewalStatus === "accepted") {
-    return "text-primary-500";
+    return "text-positive";
   }
 
   if (renewalStatus === "rejected" || renewalStatus === "error") {
-    return "text-red-500";
+    return "text-danger";
   }
 
   if (renewalStatus === "counter_offer") {
-    return "text-accent-600 dark:text-accent-400";
+    return "text-warning";
   }
 
-  return "text-gray-500 dark:text-gray-400";
+  return "text-fg-muted";
 }
 
 export function shouldDisableRenewalSubmit(state: RenewalSubmitState): boolean {
@@ -128,5 +119,19 @@ export function shouldDisableRenewalSubmit(state: RenewalSubmitState): boolean {
     !state.isRenewalWageValid ||
     !state.isRenewalLengthValid ||
     state.renewalViolatesSoftCap
+  );
+}
+
+/**
+ * Whether the manager is barred from renewing with this player today: his renewal state is
+ * `Blocked` and the block either has no end date or ends on or after today (compared as days).
+ */
+export function hasActiveManagerRenewalBlock(player: PlayerData, today: string): boolean {
+  const renewalState = player.morale_core?.renewal_state;
+  const blockedUntil = renewalState?.manager_blocked_until;
+
+  return (
+    renewalState?.status === "Blocked" &&
+    (!blockedUntil || blockedUntil.slice(0, 10) >= today.slice(0, 10))
   );
 }

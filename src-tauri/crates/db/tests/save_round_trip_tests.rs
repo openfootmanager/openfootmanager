@@ -43,8 +43,13 @@ const SEED: u64 = 11;
 
 /// A career on a compact generated world, at the start of its first season.
 fn career() -> (Game, StatsState) {
+    career_with_seed(SEED)
+}
+
+/// The same career on the compact world `seed` generates.
+fn career_with_seed(seed: u64) -> (Game, StatsState) {
     let world = generate_world_data_seeded_with(
-        SEED,
+        seed,
         &WorldGenConfig::compact(),
         &DefinitionSources::embedded_only(),
     );
@@ -69,7 +74,7 @@ fn career() -> (Game, StatsState) {
         world.staff,
         vec![],
     );
-    game.seed = SEED;
+    game.seed = seed;
     game.available_staff_market_last_activity_date = Some(start.format("%Y-%m-%d").to_string());
     repair_opening_youth_academies(&mut game);
     let stats = begin_career(
@@ -418,6 +423,30 @@ fn a_career_after_a_free_agent_signing_loads_back_unchanged() {
     assert_nothing_lost(&game, &stats, "after a free-agent signing");
 }
 
+/// The harness's loop for one season: a day at a time until the season is complete, then the
+/// rollover.
+fn play_a_season(game: &mut Game, stats: &mut StatsState, season: usize) {
+    for _ in 0..600 {
+        if is_season_complete(game) {
+            break;
+        }
+        // A user reads their mail and answers it; the inbox archive takes the read,
+        // answered mail that is old enough.
+        for message in &mut game.messages {
+            message.read = true;
+            for action in &mut message.actions {
+                action.resolved = true;
+            }
+        }
+        turn::process_day_with_capture(game, &mut |day_stats| stats.append(day_stats));
+    }
+    assert!(
+        is_season_complete(game),
+        "season {season} finished in 600 days"
+    );
+    advance_to_next_season(game).expect("the season rolls over");
+}
+
 /// A career played through one whole season and its rollover, with what the season did: the stats
 /// it recorded, the differences a save and load makes, and the players the world began with. Built
 /// once for every test that reads it (a season of the generated world is the cost of this file).
@@ -441,27 +470,7 @@ fn rolled_over() -> &'static RolledOver {
         // rollover. Two seasons, because a season of the compact world is about four months and
         // the inbox archive takes only mail more than 180 days old.
         for season in 1..=2 {
-            for _ in 0..600 {
-                if is_season_complete(&game) {
-                    break;
-                }
-                // A user reads their mail and answers it; the inbox archive takes the read,
-                // answered mail that is old enough.
-                for message in &mut game.messages {
-                    message.read = true;
-                    for action in &mut message.actions {
-                        action.resolved = true;
-                    }
-                }
-                turn::process_day_with_capture(&mut game, &mut |day_stats| {
-                    stats.append(day_stats)
-                });
-            }
-            assert!(
-                is_season_complete(&game),
-                "season {season} finished in 600 days"
-            );
-            advance_to_next_season(&mut game).expect("the season rolls over");
+            play_a_season(&mut game, &mut stats, season);
         }
         assert!(
             game.last_season_rollover_on.is_some(),
@@ -547,6 +556,40 @@ fn a_new_career_has_no_calendar_repairs() {
         repairs.calendar_dropped, 0,
         "#1265: fixtures dropped at career start"
     );
+}
+
+/// Given careers on three other compact worlds (seeds 3, 7 and 10), at their start and after two
+///       rollovers,
+/// When the load-time calendar repair is measured on each,
+/// Then it neither moves, drops nor plays out a fixture, at any of the three moments: the 0 of
+///      the seed above is not the luck of one world (#1265; measured on twelve worlds, compact seeds
+///      1 to 10 and the shipped 440-club world, all 36 moments 0).
+#[test]
+fn careers_on_other_seeds_have_no_calendar_repairs() {
+    for seed in [3, 7, 10] {
+        let (mut game, mut stats) = career_with_seed(seed);
+        let start = settled_as_a_load_settles_it(&game).1;
+        play_a_season(&mut game, &mut stats, 1);
+        let after_one = settled_as_a_load_settles_it(&game).1;
+        play_a_season(&mut game, &mut stats, 2);
+        let after_two = settled_as_a_load_settles_it(&game).1;
+
+        for (moment, repairs) in [
+            ("at career start", start),
+            ("after one season", after_one),
+            ("after two seasons", after_two),
+        ] {
+            assert_eq!(
+                (
+                    repairs.calendar_moved,
+                    repairs.calendar_dropped,
+                    repairs.stranded
+                ),
+                (0, 0, 0),
+                "#1265: seed {seed} {moment}: (moved, dropped, stranded)"
+            );
+        }
+    }
 }
 
 /// Given a career played through two rollovers, when the load-time calendar repair is measured,

@@ -2,7 +2,14 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { createTeam } from "../../test-utils/factories";
+import type { ClubSquadRatings } from "../../services/teamsService";
+import type { LeagueData } from "../../store/gameStore";
 import ChosenClubCard from "./ChosenClubCard";
+
+// The backend's keys are resolved by `resolveBackendText`; here a key reads as itself.
+vi.mock("../../utils/backendI18n", () => ({
+  resolveBackendText: (key: string | undefined, fallback: string) => key ?? fallback,
+}));
 
 vi.mock("react-i18next", () => ({
   initReactI18next: { type: "3rdParty", init: () => {} },
@@ -32,6 +39,44 @@ const TEAM = createTeam({
   founded_year: 1899,
 });
 
+const FACTS: ClubSquadRatings = {
+  team_id: "a",
+  average_rating: 74,
+  players: [],
+  stadium_name: "North Road",
+  stadium_capacity: 18400,
+  transfer_budget: 8_500_000,
+  weekly_wage_budget: 210_000,
+  balance: 12_100_000,
+  colors: { primary: "#991b1b", secondary: "#ffffff" },
+  founded_year: 1899,
+  competitions: [
+    {
+      id: "d1",
+      name: "First Division",
+      name_key: null,
+      season: 2026,
+      kind: "League",
+      scope: "Domestic",
+    },
+    {
+      id: "cup",
+      name: "Swedish Cup",
+      name_key: null,
+      season: 2026,
+      kind: "Cup",
+      scope: "Domestic",
+    },
+  ],
+  key_players: [
+    { player_id: "p1", name: "E. Sandvall", position: "Goalkeeper", ovr: 80 },
+    { player_id: "p2", name: "J. Berg", position: "CenterBack", ovr: 77 },
+  ],
+  reputation_key: "teamSelect.repStrong",
+  opening_expectation: { target_position: 3, label_key: "teamSelect.expectations.continental" },
+};
+const AGES: Record<string, number> = { p1: 29 };
+
 describe("ChosenClubCard", () => {
   /**
    * Given no club is chosen
@@ -39,7 +84,15 @@ describe("ChosenClubCard", () => {
    * Then it says so and what picking a club shows, and draws none of a club's facts.
    */
   it("says no club is chosen yet", () => {
-    render(<ChosenClubCard team={null} average={null} keyPlayers={[]} competitionNames={[]} />);
+    render(
+      <ChosenClubCard
+        team={null}
+        average={null}
+        facts={undefined}
+        competitions={[]}
+        ageOf={() => null}
+      />,
+    );
 
     expect(screen.getByText("teamSelect.card.emptyTitle")).toBeInTheDocument();
     expect(screen.getByText("teamSelect.card.emptyHint")).toBeInTheDocument();
@@ -47,19 +100,54 @@ describe("ChosenClubCard", () => {
   });
 
   /**
-   * Given a club chosen, with its key players and competitions
+   * Given an action for the chosen club (the page's Manage button), with a club and with none
    * When the card is drawn
-   * Then it names the club and its squad rating, gives its budgets, stadium, key players and
-   *      competitions, and reads the board's expectation and the reputation as a dash: those are
-   *      the backend's words, and it has not given them.
+   * Then the action ends the club's card, after its facts, and the empty card draws none.
    */
-  it("shows the chosen club's facts, and a dash for the words the backend has not given", () => {
+  it("ends the club's card with the page's action, and the empty card has none", () => {
+    const { unmount } = render(
+      <ChosenClubCard
+        team={TEAM}
+        average={74}
+        facts={FACTS}
+        competitions={[]}
+        ageOf={() => null}
+        action={<button type="button">Manage NBA</button>}
+      />,
+    );
+    const action = screen.getByRole("button", { name: "Manage NBA" });
+    const lastFact = screen.getByText("teamSelect.card.balance");
+    expect(lastFact.compareDocumentPosition(action)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    unmount();
+
+    render(
+      <ChosenClubCard
+        team={null}
+        average={null}
+        facts={undefined}
+        competitions={[]}
+        ageOf={() => null}
+        action={<button type="button">Manage NBA</button>}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Manage NBA" })).toBeNull();
+  });
+
+  /**
+   * Given a club chosen and the backend's facts for it
+   * When the card is drawn
+   * Then it shows the reputation word and the board's opening expectation the backend names, its
+   *      budgets (the wage budget already weekly, its unit stated once), balance and stadium, its
+   *      key players and the competitions it contests, all the backend's.
+   */
+  it("shows the backend's facts for the chosen club", () => {
     render(
       <ChosenClubCard
         team={TEAM}
         average={74}
-        keyPlayers={[{ id: "p1", name: "E. Sandvall", position: "Goalkeeper", age: 29, ovr: 80 }]}
-        competitionNames={["First Division", "Swedish Cup"]}
+        facts={FACTS}
+        competitions={[]}
+        ageOf={(id) => AGES[id] ?? null}
       />,
     );
 
@@ -68,21 +156,92 @@ describe("ChosenClubCard", () => {
     expect(screen.getAllByTitle(/common\.overallRating/).length).toBeGreaterThan(0);
     expect(screen.getByText("teamSelect.card.founded")).toBeInTheDocument();
     expect(screen.getByText("North Road · 18,400")).toBeInTheDocument();
-    // The wage budget states its weekly unit once, as the formatter writes it.
+    // The word and the expectation are the keys the backend names, translated here and judged nowhere.
+    expect(screen.getByText("teamSelect.card.boardExpects").nextSibling).toHaveTextContent(
+      "teamSelect.expectations.continental",
+    );
+    expect(screen.getByText("teamSelect.reputation").nextSibling).toHaveTextContent(
+      "teamSelect.repStrong",
+    );
     const wage = screen.getByText("teamSelect.card.wageBudget").nextSibling;
     expect(wage?.textContent).toMatch(/\/wk$/);
     expect(wage?.textContent).not.toMatch(/week/i);
+    expect(screen.getByText("teamSelect.card.balance").nextSibling).toHaveTextContent("12.1M");
     expect(screen.getByText("E. Sandvall")).toBeInTheDocument();
+    expect(screen.getByText("J. Berg")).toBeInTheDocument();
     expect(screen.getByRole("list", { name: "teamSelect.competitions" })).toHaveTextContent(
       "First DivisionSwedish Cup",
     );
-    expect(screen.getByText("teamSelect.card.boardExpects").nextSibling).toHaveTextContent("—");
-    expect(screen.getByText("teamSelect.reputation").nextSibling).toHaveTextContent("—");
   });
 
-  it("reads the squad rating as a dash before the backend has rated it", () => {
-    render(<ChosenClubCard team={TEAM} average={null} keyPlayers={[]} competitionNames={[]} />);
+  /**
+   * Given the backend names a club's competition "First Division", and the world's own entry for it
+   *       is "England First Division" (its name is built with its country)
+   * When the card is drawn
+   * Then the chip is named from the world's entry, so competitions of different countries stay
+   *      apart.
+   */
+  it("names a competition from the world's own entry, which carries its country", () => {
+    render(
+      <ChosenClubCard
+        team={TEAM}
+        average={74}
+        facts={FACTS}
+        competitions={[{ id: "d1", name: "England First Division", season: 2026 } as LeagueData]}
+        ageOf={() => null}
+      />,
+    );
+
+    expect(screen.getByRole("list", { name: "teamSelect.competitions" })).toHaveTextContent(
+      "England First DivisionSwedish Cup",
+    );
+  });
+
+  /**
+   * Given a key player the game state does not hold (so his age is unknown)
+   * When the card is drawn
+   * Then his row has no age, and the others keep theirs.
+   */
+  it("leaves out the age of a key player the game state does not hold", () => {
+    render(
+      <ChosenClubCard
+        team={TEAM}
+        average={74}
+        facts={FACTS}
+        competitions={[]}
+        ageOf={(id) => AGES[id] ?? null}
+      />,
+    );
+
+    const rows = screen
+      .getAllByRole("listitem")
+      .filter(
+        (item) => item.textContent?.includes("Sandvall") || item.textContent?.includes("Berg"),
+      );
+    expect(rows[0]).toHaveTextContent("29");
+    expect(rows[1]).not.toHaveTextContent("common.age");
+  });
+
+  /**
+   * Given a club chosen before the backend has answered
+   * When the card is drawn
+   * Then every backend fact reads a dash, and no number is invented from the game state.
+   */
+  it("reads a dash for every fact until the backend answers", () => {
+    render(
+      <ChosenClubCard
+        team={TEAM}
+        average={null}
+        facts={undefined}
+        competitions={[]}
+        ageOf={() => null}
+      />,
+    );
 
     expect(screen.queryByTitle(/common\.overallRating/)).toBeNull();
+    expect(screen.getByText("teamSelect.card.boardExpects").nextSibling).toHaveTextContent("—");
+    expect(screen.getByText("teamSelect.reputation").nextSibling).toHaveTextContent("—");
+    expect(screen.getByText("teamSelect.card.transferBudget").nextSibling).toHaveTextContent("—");
+    expect(screen.getByText("teamSelect.card.stadium").nextSibling).toHaveTextContent("—");
   });
 });
