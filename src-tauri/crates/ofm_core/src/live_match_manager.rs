@@ -915,6 +915,30 @@ fn ai_profile_of(game: &Game, team_id: &str) -> AiProfile {
     }
 }
 
+/// Takes the slots `team_id`'s side fields at kick-off (the club's own, a moved slot as the manager
+/// moved it) and installs the roles those slots admit on the side. The slots are held with the
+/// formation they were taken for (`SideSlots`).
+fn capture_side_slots(
+    game: &Game,
+    match_state: &mut LiveMatchState,
+    side: Side,
+    team_id: &str,
+) -> SideSlots {
+    let formation = match_state.team(side).formation.clone();
+    let slots = team_slots_for(
+        game.teams.iter().find(|team| team.id == team_id),
+        &formation,
+    );
+    let lines: Vec<_> = match_state
+        .team(side)
+        .players
+        .iter()
+        .map(|player| player.position)
+        .collect();
+    match_state.set_slot_roles(side, admitted_roles_for_slots(&slots, &lines));
+    SideSlots { formation, slots }
+}
+
 /// [`create_live_match`] for a matchday that has already found the clubs with a match soon
 /// (`lookups`: where each club's players stand, and who plays again soon).
 fn create_live_match_with(
@@ -967,22 +991,8 @@ fn create_live_match_with(
         away_bench,
         allows_extra_time,
     );
-    let side_slots = |side: Side, team_id: &str| {
-        let formation = match_state.team(side).formation.clone();
-        let slots = team_slots_for(
-            game.teams.iter().find(|team| team.id == team_id),
-            &formation,
-        );
-        SideSlots { formation, slots }
-    };
-    let home_slots = side_slots(Side::Home, &home_team_id);
-    let away_slots = side_slots(Side::Away, &away_team_id);
-    for (side, held) in [(Side::Home, &home_slots), (Side::Away, &away_slots)] {
-        let team = match_state.team(side);
-        let lines: Vec<_> = team.players.iter().map(|p| p.position).collect();
-        let roles = admitted_roles_for_slots(&held.slots, &lines);
-        match_state.set_slot_roles(side, roles);
-    }
+    let home_slots = capture_side_slots(game, &mut match_state, Side::Home, &home_team_id);
+    let away_slots = capture_side_slots(game, &mut match_state, Side::Away, &away_team_id);
     apply_saved_match_roles(
         &mut match_state,
         Side::Home,

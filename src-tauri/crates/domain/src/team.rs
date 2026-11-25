@@ -466,6 +466,17 @@ impl Default for Facilities {
 }
 
 impl Team {
+    /// Plays `formation` from now on. A change of shape clears `slot_positions`: every formation has
+    /// eleven slots, so the length check could not tell a list kept from the old shape from one made
+    /// for the new, and slot 7 of the old 4-4-2 would be read as slot 7 of the 4-3-3. Naming the
+    /// shape the team already plays changes nothing.
+    pub fn change_formation(&mut self, formation: &str) {
+        if self.formation != formation {
+            self.formation = formation.to_string();
+            self.slot_positions.clear();
+        }
+    }
+
     pub fn new(
         id: String,
         name: String,
@@ -580,5 +591,27 @@ mod slot_positions_tests {
         let read: Team = serde_json::from_str(&serde_json::to_string(&moved).unwrap()).unwrap();
 
         assert_eq!(read.slot_positions, moved.slot_positions);
+    }
+
+    /// Given a team with a slot moved in its 4-4-2
+    /// When it changes formation, and then names the shape it plays
+    /// Then the moved slots are cleared at the change and a repeat of the same shape keeps what was
+    ///      set after it.
+    #[test]
+    fn a_change_of_formation_clears_the_moved_slots_and_a_repeat_keeps_them() {
+        let mut moved = team();
+        moved.formation = "4-4-2".to_string();
+        moved.slot_positions = vec![Position::Goalkeeper; 11];
+
+        moved.change_formation("4-4-2");
+        assert_eq!(
+            moved.slot_positions.len(),
+            11,
+            "the same shape changes nothing"
+        );
+        moved.change_formation("4-3-3");
+
+        assert_eq!(moved.formation, "4-3-3");
+        assert!(moved.slot_positions.is_empty());
     }
 }

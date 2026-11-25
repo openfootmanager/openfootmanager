@@ -190,7 +190,7 @@ pub fn apply_custom_tactic(game: &mut Game, id: &str) -> Result<Vec<String>, Str
         .find(|team| team.id == team_id)
         .ok_or_else(|| MANAGED_TEAM_NOT_FOUND_ERROR.to_string())?;
 
-    team.formation = tactic.formation.clone();
+    team.change_formation(&tactic.formation);
     team.play_style = play_style;
     let Some(contents) = tactic.contents else {
         return Ok(Vec::new());

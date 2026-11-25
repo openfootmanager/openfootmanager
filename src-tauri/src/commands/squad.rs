@@ -31,7 +31,7 @@ fn apply_formation(game: &mut Game, formation: &str) -> Result<(), String> {
     // bucket overwrite corrupted role validation and match simulation
     // (issue #257).
     let team = user_team_mut(game)?;
-    team.formation = formation.to_string();
+    team.change_formation(formation);
 
     reconcile_player_roles(game, &team_id);
 
@@ -641,7 +641,9 @@ pub(crate) fn reconcile_player_roles(game: &mut Game, team_id: &str) {
         return;
     }
 
-    let slots = ofm_core::player_rating::formation_slots(&team.formation);
+    // The slots the club fields, a moved one as the manager moved it: a role valid for that slot is
+    // kept, as the match will play it.
+    let slots = ofm_core::player_rating::team_slots(team);
     // Validate EVERY assigned role, not just starters: a role that was valid in
     // a player's slot must be cleared once they are benched (validated against
     // their natural position there), otherwise the stale assignment persists and
