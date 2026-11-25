@@ -1689,6 +1689,8 @@
       "firstDivision": "{{country}} Первый дивизион",
       "secondDivision": "{{country}} Второй дивизион",
       "tierDivision": "Дивизион {{tier}} ({{country}})",
+      "phaseOpening": "Турнир открытия",
+      "phaseClosing": "Турнир закрытия",
       "nationalCup": "{{country}} Кубок",
       "continentalChampionsCup": "Континентальный кубок чемпионов",
       "premierDivision": "Премьер-дивизион"

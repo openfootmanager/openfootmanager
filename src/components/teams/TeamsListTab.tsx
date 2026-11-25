@@ -87,7 +87,22 @@ export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabPr
           name:
             league.id === UNGROUPED_LEAGUE_ID
               ? t("teams.otherClubs")
-              : competitionDisplayName(league, t),
+              : competitionDisplayName(
+                  {
+                    ...league,
+                    calendar: league.division_phase
+                      ? {
+                          season: {
+                            division: {
+                              tier: league.division_tier,
+                              phase: league.division_phase,
+                            },
+                          },
+                        }
+                      : undefined,
+                  },
+                  t,
+                ),
           teams: league.teams,
         })),
       }))

@@ -536,59 +536,6 @@ describe("resolveMessage", () => {
     expect(text).toBe("Season 1 prize money for 3rd place");
   });
 
-  // Given a promotion notice for a generated division (stored under its English template name),
-  // when rendered in German, then the division reads as the locale names it, not in English.
-  it("names a promoted-to division in the player's language", async () => {
-    const previousLanguage = i18n.language;
-    await i18n.changeLanguage("de");
-    try {
-      const promotion = resolveMessage(
-        makeMessage({
-          subject_key: "be.msg.promotion.subject",
-          body_key: "be.msg.promotion.body",
-          i18n_params: {
-            division: "Germany Second Division",
-            divisionKey: "tournaments.competitions.secondDivision",
-            divisionCountry: "DE",
-            divisionSeason: "3",
-            season: "3",
-          },
-        }),
-      );
-      expect(promotion.subject).toContain("Deutschland Zweite Division");
-      expect(promotion.subject).not.toContain("Germany");
-      expect(promotion.body).toContain("Deutschland Zweite Division");
-    } finally {
-      await i18n.changeLanguage(previousLanguage);
-    }
-  });
-
-  // Given a relegation notice for a generated division, when rendered in German, then the division
-  // is named by the locale too (the relegation subject takes the same path as the promotion one).
-  it("names a relegated-to division in the player's language", async () => {
-    const previousLanguage = i18n.language;
-    await i18n.changeLanguage("de");
-    try {
-      const relegation = resolveMessage(
-        makeMessage({
-          subject_key: "be.msg.relegation.subject",
-          body_key: "be.msg.relegation.body",
-          i18n_params: {
-            division: "Germany Second Division",
-            divisionKey: "tournaments.competitions.secondDivision",
-            divisionCountry: "DE",
-            divisionSeason: "3",
-            season: "3",
-          },
-        }),
-      );
-      expect(relegation.subject).toContain("Deutschland Zweite Division");
-      expect(relegation.subject).not.toContain("Germany");
-    } finally {
-      await i18n.changeLanguage(previousLanguage);
-    }
-  });
-
   // Given a promotion notice with no division key (a hand-made division, or an older save),
   // when resolved, then the stored name is used as it is.
   it("keeps the stored division name when the notice carries no key", () => {

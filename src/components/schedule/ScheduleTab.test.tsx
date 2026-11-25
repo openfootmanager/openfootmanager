@@ -16,6 +16,12 @@ vi.mock("react-i18next", () => ({
   initReactI18next: { type: "3rdParty", init: () => undefined },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number> | string) => {
+      if (key === "nations.ar") return "Argentina";
+      if (key === "tournaments.competitions.tierDivision" && params && typeof params === "object") {
+        return `${params.country} Division ${params.tier}`;
+      }
+      if (key === "tournaments.competitions.phaseOpening") return "Opening tournament";
+      if (key === "tournaments.competitions.phaseClosing") return "Closing tournament";
       if (key === "schedule.noLeague") return "No league";
       if (key === "schedule.fixtures") return "Fixtures";
       if (key === "schedule.standings") return "Standings";
@@ -545,6 +551,63 @@ describe("ScheduleTab", () => {
         query: { competition_id: "bra-1" },
       });
     });
+  });
+
+  /**
+   * Given opening and closing competitions at the same tier
+   * When the schedule selector renders
+   * Then both localized option labels include their phase
+   */
+  it("keeps split-season phases visible in the schedule selector", async () => {
+    const state = makeGameState(true);
+    const calendar = (phase: "opening" | "closing") => ({
+      definition_id: `ar-d3-${phase}`,
+      edition_basis: { kind: "calendarYear" as const },
+      league_legs: 2,
+      matchday_gap_days: null,
+      season: { division: { familyId: "ar-league", tier: 3, phase } },
+    });
+    state.competitions = [
+      {
+        id: "ar-d3-apertura",
+        name: "Argentina Division 3 Apertura",
+        name_key: "tournaments.competitions.tierDivision",
+        country_id: "AR",
+        season: 2032,
+        calendar: calendar("opening"),
+        participant_ids: ["team-1", "team-2"],
+        fixtures: [],
+        standings: [],
+      },
+      {
+        id: "ar-d3-clausura",
+        name: "Argentina Division 3 Clausura",
+        name_key: "tournaments.competitions.tierDivision",
+        country_id: "AR",
+        season: 2032,
+        calendar: calendar("closing"),
+        participant_ids: ["team-1", "team-2"],
+        fixtures: [],
+        standings: [],
+      },
+    ];
+    state.active_competition_ids = ["ar-d3-apertura", "ar-d3-clausura"];
+
+    render(<ScheduleTab gameState={state} onSelectTeam={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("combobox")).toHaveTextContent(
+        "Argentina Division 3 Opening tournament",
+      );
+    });
+    fireEvent.click(screen.getByRole("combobox"));
+
+    expect(
+      screen.getByRole("option", { name: "Argentina Division 3 Opening tournament" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: "Argentina Division 3 Closing tournament" }),
+    ).toBeInTheDocument();
   });
 
   it("hides the international toggle when there are no national-team fixtures", () => {

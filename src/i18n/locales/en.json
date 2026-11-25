@@ -1689,6 +1689,8 @@
       "firstDivision": "{{country}} First Division",
       "secondDivision": "{{country}} Second Division",
       "tierDivision": "{{country}} Division {{tier}}",
+      "phaseOpening": "Opening tournament",
+      "phaseClosing": "Closing tournament",
       "nationalCup": "{{country}} Cup",
       "continentalChampionsCup": "Continental Champions Cup",
       "premierDivision": "Premier Division"

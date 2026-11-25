@@ -224,7 +224,7 @@ function scanSource(path: string, source: string): string[] {
       if (
         path === "../lib/competitionName.ts" &&
         inFunction(node, "competitionDisplayName") &&
-        first?.getText(file) === "comp.name_key"
+        ["comp.name_key", "nameKey"].includes(first?.getText(file) ?? "")
       ) {
         const options = node.arguments[1];
         safeCompetition =
@@ -393,6 +393,11 @@ describe("backend key fields reach the player through the resolver", () => {
     [
       "safe competition fallback",
       'function competitionDisplayName(comp, t) { return t(comp.name_key, {defaultValue: comp.name ?? ""}); }',
+      false,
+    ],
+    [
+      "safe competition fallback through resolved key",
+      'function competitionDisplayName(comp, t) { const nameKey = comp.name_key; return t(nameKey, {defaultValue: comp.name ?? ""}); }',
       false,
     ],
     [
