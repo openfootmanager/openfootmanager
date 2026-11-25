@@ -216,4 +216,34 @@ describe("a preset chosen while saved tactics are being applied (#1447)", () => 
     expect(onKeepInstructions).not.toHaveBeenCalled();
     expect(onApplyPreset).not.toHaveBeenCalled();
   });
+
+  /**
+   * Given the setup changed from outside the tab BEFORE the manager chose a preset (nothing in the
+   *       queue, so no apply is behind it)
+   * When the manager chooses the preset
+   * Then the choice is asked about as usual: a setup the screen showed before the click is not an
+   *      independent change under it, so an older setup must not drop a choice made on the new one.
+   */
+  it("does not drop a preset chosen after the setup had already changed from outside the tab", async () => {
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "list_custom_tactics") return [wire("a", "Away")];
+      if (command === "legacy_tactics_import_pending") return false;
+      if (command === "get_tactics_blueprint_status") return { modified: true };
+      return { modified: false };
+    });
+    const { result } = mountWithPresetChoice({
+      onApplyPreset: vi.fn(async () => true),
+      onKeepInstructions: vi.fn(async () => true),
+    });
+    await waitFor(() => expect(customIds({ current: result.current.library })).toEqual(["a"]));
+    const preset = result.current.library.tacticLibrary.find((e) => e.id === "preset:wing-play");
+    if (!preset) throw new Error("the preset is in the library");
+
+    act(() => result.current.externalChange({ formation: "3-5-2", playStyle: "Possession" }));
+    await act(async () => {
+      await result.current.presetChoice.choose(preset);
+    });
+
+    expect(result.current.presetChoice.pending?.id).toBe("preset:wing-play");
+  });
 });
