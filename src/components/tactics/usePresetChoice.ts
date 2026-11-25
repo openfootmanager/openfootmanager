@@ -35,7 +35,7 @@ export function usePresetChoice(
   /** The formation and play style the team has now: a change under a pending lookup makes it stale. */
   setupKey: string,
   /** Resolves when every apply asked so far has landed: a preset's question waits for them. */
-  appliesSettled: () => Promise<void>,
+  appliesSettled: () => Promise<ReadonlySet<string>>,
 ): {
   /** The preset waiting for the manager's answer, if any. */
   pending: TacticsLibraryEntry | null;
@@ -51,6 +51,12 @@ export function usePresetChoice(
   // The setup as of the latest render, read when a lookup answers.
   const currentSetup = useRef(setupKey);
   currentSetup.current = setupKey;
+  // Every setup the screen has rendered since a choice began waiting, to tell the changes the earlier
+  // applies made from one that came from elsewhere.
+  const seenSetups = useRef(new Set<string>());
+  useEffect(() => {
+    seenSetups.current.add(setupKey);
+  }, [setupKey]);
   const careerEpoch = useGameStore((state) => state.careerEpoch);
 
   useEffect(() => {
@@ -77,7 +83,9 @@ export function usePresetChoice(
     // the team has when it is applied. Saved tactics still queued or in flight change them when they
     // land (and the setup with them), so the question waits for them: asked at the click it would be
     // answered against what the backend held before they landed.
-    await appliesSettled();
+    const clickedSetup = currentSetup.current;
+    seenSetups.current = new Set([clickedSetup]);
+    const leftByApplies = await appliesSettled();
     if (thisChoice !== latestChoice.current) return;
     if (useGameStore.getState().careerEpoch !== askedIn) return;
     // The setup the lookup is about is the one the earlier applies left. Their game updates have been
@@ -87,6 +95,12 @@ export function usePresetChoice(
     await new Promise((resolve) => setTimeout(resolve, 0));
     if (thisChoice !== latestChoice.current) return;
     if (useGameStore.getState().careerEpoch !== askedIn) return;
+    // A setup that is neither the one at the click nor one the earlier applies left came from outside
+    // the tab: the choice was about an older setup than the one on screen, so it is dropped (as one
+    // whose setup changes during the lookup always is) rather than overwrite what is newer.
+    for (const seen of seenSetups.current) {
+      if (seen !== clickedSetup && !leftByApplies.has(seen)) return;
+    }
     const askedSetup = currentSetup.current;
     let wouldReplace = true;
     try {

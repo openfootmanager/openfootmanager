@@ -1,9 +1,10 @@
-import { type MutableRefObject, useState } from "react";
+import { type MutableRefObject, useRef, useState } from "react";
 
 import { type GameStateData, useGameStore } from "../../store/gameStore";
 import { createWriteQueue } from "../../lib/writeQueue";
 import { applyCustomTactic } from "../../services/customTacticsService";
 import type { TacticsLibraryEntry } from "./TacticPicker";
+import { setupKey } from "./TacticsTab.helpers";
 
 interface UseApplyTacticArgs {
   onApplyPreset: (formation: string, playStyle: string) => Promise<boolean>;
@@ -36,6 +37,11 @@ export function useApplyTactic({
   // would leave the screen showing the earlier one's game while the save holds the later one's, and
   // a preset chosen after a saved tactic that is still waiting would be overwritten by it.
   const [enqueue] = useState(createWriteQueue);
+  // The setups the applies in the queue have left (a tactic carries its formation and play style),
+  // so a choice waiting behind them can tell their changes of the setup from an independent one. Kept
+  // only while the queue is busy: once it is idle, nothing asked before is still to land.
+  const delivered = useRef(new Set<string>());
+  const inQueue = useRef(0);
 
   // A saved tactic is put back whole by the backend: its formation and style, and for one that
   // holds them its instructions, eleven, roles and takers (#1189).
@@ -73,11 +79,17 @@ export function useApplyTactic({
     // phase blueprint together (#365), unless the manager chose to keep their own instructions,
     // which takes the formation and style only. A saved tactic is applied whole too.
     const applyPreset = options.keepInstructions ? onKeepInstructions : onApplyPreset;
+    inQueue.current += 1;
     const didApply = await enqueue(async () => {
       if (stale()) return false;
-      if (!isPreset) return sendSavedTactic(nextTactic, askedIn);
-      const applied = await applyPreset(nextTactic.formation, nextTactic.playStyle);
-      return applied && !stale();
+      const landed = isPreset
+        ? await applyPreset(nextTactic.formation, nextTactic.playStyle)
+        : await sendSavedTactic(nextTactic, askedIn);
+      if (landed) delivered.current.add(setupKey(nextTactic.formation, nextTactic.playStyle));
+      return isPreset ? landed && !stale() : landed;
+    }).finally(() => {
+      inQueue.current -= 1;
+      if (inQueue.current === 0) delivered.current.clear();
     });
     if (!didApply) {
       return;
@@ -94,10 +106,17 @@ export function useApplyTactic({
   }
 
   /**
-   * Resolves once every apply asked so far has landed (or been refused): what a decision about the
-   * team's instructions has to wait for, since a saved tactic changes them when it lands.
+   * Resolves once every apply asked so far has landed (or been refused), with the setups they left:
+   * what a decision about the team's instructions has to wait for, since a saved tactic changes them
+   * when it lands.
    */
-  const appliesSettled = (): Promise<void> => enqueue(async () => undefined);
+  const appliesSettled = (): Promise<ReadonlySet<string>> => {
+    inQueue.current += 1;
+    return enqueue(async () => new Set(delivered.current)).finally(() => {
+      inQueue.current -= 1;
+      if (inQueue.current === 0) delivered.current.clear();
+    });
+  };
 
   return { applyTacticSelection, appliesSettled };
 }

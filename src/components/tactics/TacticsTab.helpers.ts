@@ -171,3 +171,11 @@ export function effectivePlayerRoles(
   for (const slot of lineup.eleven) roles[slot.player_id] = slot.role;
   return roles;
 }
+
+/**
+ * The formation and play style a team plays, as one comparable string: what a preset's write
+ * changes, and what the screen compares to know the setup changed under a choice.
+ */
+export function setupKey(formation: string, playStyle: string): string {
+  return `${formation}|${playStyle}`;
+}

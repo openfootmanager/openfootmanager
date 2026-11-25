@@ -7,7 +7,7 @@ import { setPlayerRole } from "../../services/squadService";
 import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 
 import TacticsLineupSection from "./TacticsLineupSection";
-import { effectivePlayerRoles } from "./TacticsTab.helpers";
+import { effectivePlayerRoles, setupKey } from "./TacticsTab.helpers";
 import TacticsSetPieces from "./TacticsSetPieces";
 import TacticsWorkbench from "./TacticsWorkbench";
 import TacticsCommandBar from "./TacticsCommandBar";
@@ -110,7 +110,7 @@ export default function TacticsTab({
 
   const presetChoice = usePresetChoice(
     (tactic, keepInstructions) => applyTacticSelection(tactic, { keepInstructions }),
-    `${formation}|${activePlayStyle}`,
+    setupKey(formation, activePlayStyle),
     appliesSettled,
   );
 
