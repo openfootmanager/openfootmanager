@@ -1034,7 +1034,8 @@ fn build_package_club(
     let mut placed = vec![false; players.len()];
     let mut authored_ids = HashSet::new();
     for def in authored {
-        let authored_player = generate_player_from_def(def, &team.id, opening_year, names_def, rng);
+        let mut authored_player =
+            generate_player_from_def(def, &team.id, opening_year, names_def, rng);
         if authored_player::authors_a_contract(def) {
             authored_ids.insert(authored_player.id.clone());
         }
@@ -1046,10 +1047,23 @@ fn build_package_club(
             .map(|(index, _)| index);
         match slot {
             Some(index) => {
+                // The authored player takes the slot and the shirt the generated player there
+                // wore, so a club's authored squad keeps the numbers its backfill had (#1450).
+                let shirt = players[index].jersey_number.or_else(|| {
+                    crate::roster::jersey_among(
+                        players.iter().filter_map(|player| player.jersey_number),
+                        None,
+                    )
+                });
                 players[index] = authored_player;
+                players[index].jersey_number = shirt;
                 placed[index] = true;
             }
             None => {
+                authored_player.jersey_number = crate::roster::jersey_among(
+                    players.iter().filter_map(|player| player.jersey_number),
+                    None,
+                );
                 players.push(authored_player);
                 placed.push(true);
             }
