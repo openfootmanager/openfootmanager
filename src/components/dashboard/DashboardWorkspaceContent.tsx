@@ -7,6 +7,7 @@ import type { DashboardProfileNavigationState } from "./dashboardProfileNavigati
 import DashboardTabContent from "./DashboardTabContent";
 import type { DashboardTabContentModel } from "./dashboardTabContentModel";
 import { ShieldX } from "lucide-react";
+import { ErrorBoundary } from "../ui/ErrorBoundary";
 import { useTranslation } from "react-i18next";
 
 interface DashboardWorkspaceContentProps {
@@ -56,40 +57,47 @@ export default function DashboardWorkspaceContent({
         </div>
       )}
 
-      {!selectedPlayer && !selectedTeam ? (
-        <DashboardAlerts alerts={dashboardAlerts} onNavigate={onNavigate} />
-      ) : null}
+      {/* A render error in the open page shows its error screen here, and the header and the sidebar
+          stay; opening another page or profile remounts the boundary, which clears it. */}
+      <ErrorBoundary
+        key={`${dashboardTabContentModel.activeTab}|${profileNavigation.selectedPlayerId}|${profileNavigation.selectedTeamId}`}
+        fullScreen={false}
+      >
+        {!selectedPlayer && !selectedTeam ? (
+          <DashboardAlerts alerts={dashboardAlerts} onNavigate={onNavigate} />
+        ) : null}
 
-      {selectedPlayer && !selectedTeam ? (
-        <PlayerProfile
-          player={selectedPlayer}
-          gameState={gameState}
-          isOwnClub={selectedPlayer.team_id === gameState.manager.team_id}
-          startWithRenewalModal={
-            profileNavigation.selectedPlayerOptions?.openRenewal === true
-          }
-          startWithTerminationModal={
-            profileNavigation.selectedPlayerOptions?.openTermination === true
-          }
-          onClose={onBack}
-          onSelectTeam={onSelectTeam}
-          onGameUpdate={onGameUpdate}
-        />
-      ) : null}
+        {selectedPlayer && !selectedTeam ? (
+          <PlayerProfile
+            player={selectedPlayer}
+            gameState={gameState}
+            isOwnClub={selectedPlayer.team_id === gameState.manager.team_id}
+            startWithRenewalModal={
+              profileNavigation.selectedPlayerOptions?.openRenewal === true
+            }
+            startWithTerminationModal={
+              profileNavigation.selectedPlayerOptions?.openTermination === true
+            }
+            onClose={onBack}
+            onSelectTeam={onSelectTeam}
+            onGameUpdate={onGameUpdate}
+          />
+        ) : null}
 
-      {selectedTeam ? (
-        <TeamProfile
-          team={selectedTeam}
-          gameState={gameState}
-          isOwnTeam={selectedTeam.id === gameState.manager.team_id}
-          onClose={onBack}
-          onSelectPlayer={onSelectPlayer}
-        />
-      ) : null}
+        {selectedTeam ? (
+          <TeamProfile
+            team={selectedTeam}
+            gameState={gameState}
+            isOwnTeam={selectedTeam.id === gameState.manager.team_id}
+            onClose={onBack}
+            onSelectPlayer={onSelectPlayer}
+          />
+        ) : null}
 
-      {!selectedPlayer && !selectedTeam ? (
-        <DashboardTabContent viewModel={dashboardTabContentModel} />
-      ) : null}
+        {!selectedPlayer && !selectedTeam ? (
+          <DashboardTabContent viewModel={dashboardTabContentModel} />
+        ) : null}
+      </ErrorBoundary>
     </div>
   );
 }

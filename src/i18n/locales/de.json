@@ -2681,5 +2681,12 @@
     "goals": "Tore",
     "rating": "Bewertung",
     "winRate": "Siegquote"
+  },
+  "errorBoundary": {
+    "title": "Etwas ist schiefgelaufen",
+    "description": "Auf diesem Bildschirm ist ein Fehler aufgetreten, von dem er sich nicht erholen konnte. Versuche es zuerst erneut — beim Neuladen startet das Spiel neu und nicht gespeicherter Fortschritt geht verloren.",
+    "retry": "Erneut versuchen",
+    "reload": "Spiel neu laden",
+    "menu": "Zurück zum Hauptmenü"
   }
 }

@@ -2,6 +2,7 @@ import { useEffect, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useSettingsStore } from "./store/settingsStore";
 import i18n, { changeAppLanguage } from "./i18n";
+import { ErrorBoundary } from "./components/ui/ErrorBoundary";
 import "./App.css";
 
 const MainMenu = lazy(() => import("./pages/MainMenu"));
@@ -53,15 +54,17 @@ function App() {
 
   return (
     <BrowserRouter>
-      <Suspense fallback={<LazyFallback />}>
-        <Routes>
-          <Route path="/" element={<MainMenu />} />
-          <Route path="/select-team" element={<TeamSelection />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/match" element={<MatchSimulation />} />
-          <Route path="/settings" element={<Settings />} />
-        </Routes>
-      </Suspense>
+      <ErrorBoundary>
+        <Suspense fallback={<LazyFallback />}>
+          <Routes>
+            <Route path="/" element={<MainMenu />} />
+            <Route path="/select-team" element={<TeamSelection />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/match" element={<MatchSimulation />} />
+            <Route path="/settings" element={<Settings />} />
+          </Routes>
+        </Suspense>
+      </ErrorBoundary>
     </BrowserRouter>
   );
 }
