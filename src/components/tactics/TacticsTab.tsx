@@ -88,6 +88,7 @@ export default function TacticsTab({
     handleResetTactic,
     applyTacticSelection,
     appliesSettled,
+    runAfterApplies,
     handleCreateCustomTactic,
     handleDuplicateTactic,
     handleSaveTactic,
@@ -155,11 +156,11 @@ export default function TacticsTab({
         onFormationChange={(nextFormation) => {
           // At the edit, not when its write lands: the setupKey check cannot see it until the reply.
           presetChoice.invalidate();
-          void handleFormationChange(nextFormation);
+          void runAfterApplies(() => handleFormationChange(nextFormation));
         }}
         onPlayStyleChange={(playStyle) => {
           presetChoice.invalidate();
-          void handlePlayStyleChange(playStyle);
+          void runAfterApplies(() => handlePlayStyleChange(playStyle));
         }}
         onSave={handleSaveTactic}
         onSelectTactic={(id) => {

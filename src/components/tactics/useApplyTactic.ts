@@ -43,25 +43,45 @@ export function useApplyTactic({
   const delivered = useRef(new Set<string>());
   const inQueue = useRef(0);
 
+  // The setup the team has in `game`, as the screen reads it (`useTacticsLineup`), or null when the
+  // game does not say (no club).
+  function setupOfUserTeam(game: GameStateData): string | null {
+    const team = game.teams?.find((candidate) => candidate.id === game.manager?.team_id);
+    return team ? setupKey(team.formation, team.play_style || "Balanced") : null;
+  }
+
+  // One entry in the queue, counted while it waits and runs: the setups the applies have delivered
+  // are forgotten once the queue is idle, since nothing asked before is still to land.
+  function track<T>(task: () => Promise<T>): Promise<T> {
+    inQueue.current += 1;
+    return enqueue(task).finally(() => {
+      inQueue.current -= 1;
+      if (inQueue.current === 0) delivered.current.clear();
+    });
+  }
+
   // A saved tactic is put back whole by the backend: its formation and style, and for one that
   // holds them its instructions, eleven, roles and takers (#1189).
+  // Resolves to the setup the team got, or null when the apply did not land. The backend applies the
+  // tactic as it holds it when the apply runs, which is not always what the screen had for it when it
+  // was asked (a re-save in between), so the answer is what says what was delivered.
   async function sendSavedTactic(
     nextTactic: TacticsLibraryEntry,
     askedIn: number,
-  ): Promise<boolean> {
+  ): Promise<string | null> {
     try {
       const applied = await applyCustomTactic(nextTactic.id.trim(), careerToken);
       // An answer that lands after the career changed (the game left, another loaded) is the old
       // career's game: it must not replace the one now open, as `changeSave`'s steps don't.
-      if (useGameStore.getState().careerEpoch !== askedIn) return false;
+      if (useGameStore.getState().careerEpoch !== askedIn) return null;
       onGameUpdate(applied);
-      return true;
+      return setupOfUserTeam(applied) ?? setupKey(nextTactic.formation, nextTactic.playStyle);
     } catch (error) {
       console.error("Failed to apply the saved tactic:", error);
       // A refusal that lands after the career changed is the old career's: the screen's alert is
       // the open career's, as for the success path above.
       if (useGameStore.getState().careerEpoch === askedIn) onWriteError(error);
-      return false;
+      return null;
     }
   }
 
@@ -79,17 +99,16 @@ export function useApplyTactic({
     // phase blueprint together (#365), unless the manager chose to keep their own instructions,
     // which takes the formation and style only. A saved tactic is applied whole too.
     const applyPreset = options.keepInstructions ? onKeepInstructions : onApplyPreset;
-    inQueue.current += 1;
-    const didApply = await enqueue(async () => {
+    const didApply = await track(async () => {
       if (stale()) return false;
-      const landed = isPreset
-        ? await applyPreset(nextTactic.formation, nextTactic.playStyle)
-        : await sendSavedTactic(nextTactic, askedIn);
-      if (landed) delivered.current.add(setupKey(nextTactic.formation, nextTactic.playStyle));
-      return isPreset ? landed && !stale() : landed;
-    }).finally(() => {
-      inQueue.current -= 1;
-      if (inQueue.current === 0) delivered.current.clear();
+      if (isPreset) {
+        const landed = await applyPreset(nextTactic.formation, nextTactic.playStyle);
+        if (landed) delivered.current.add(setupKey(nextTactic.formation, nextTactic.playStyle));
+        return landed && !stale();
+      }
+      const setup = await sendSavedTactic(nextTactic, askedIn);
+      if (setup !== null) delivered.current.add(setup);
+      return setup !== null;
     });
     if (!didApply) {
       return;
@@ -110,13 +129,21 @@ export function useApplyTactic({
    * what a decision about the team's instructions has to wait for, since a saved tactic changes them
    * when it lands.
    */
-  const appliesSettled = (): Promise<ReadonlySet<string>> => {
-    inQueue.current += 1;
-    return enqueue(async () => new Set(delivered.current)).finally(() => {
-      inQueue.current -= 1;
-      if (inQueue.current === 0) delivered.current.clear();
-    });
-  };
+  const appliesSettled = (): Promise<ReadonlySet<string>> =>
+    track(async () => new Set(delivered.current));
 
-  return { applyTacticSelection, appliesSettled };
+  /**
+   * Runs the manager's own write (a formation or play style edit) after every apply asked so far, in
+   * the one queue: sent at once it could reach the backend before an apply still waiting, which would
+   * then overwrite it, and the last thing the manager did must be what stands. Not sent if the career
+   * changed by its turn.
+   */
+  function runAfterApplies<T>(write: () => Promise<T>): Promise<T | undefined> {
+    const askedIn = useGameStore.getState().careerEpoch;
+    return track(async () =>
+      useGameStore.getState().careerEpoch === askedIn ? write() : undefined,
+    );
+  }
+
+  return { applyTacticSelection, appliesSettled, runAfterApplies };
 }

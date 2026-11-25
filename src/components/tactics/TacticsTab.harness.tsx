@@ -186,6 +186,8 @@ export const knobs = {
   libraryListReleases: null as Array<() => void> | null,
   /** Whether the next `list_custom_tactics` (after its gate) fails once. */
   libraryListFailsOnce: false,
+  /** When set, the faked backend applies a saved tactic only once this resolves (the request is out). */
+  applyCustomTacticGate: null as Promise<void> | null,
 };
 
 /** The faked backend's own copy of the game, and the tactics its save holds, in the order made. */
@@ -220,6 +222,7 @@ export function resetHarness() {
   knobs.libraryListGate = null;
   knobs.libraryListReleases = null;
   knobs.libraryListFailsOnce = false;
+  knobs.applyCustomTacticGate = null;
 }
 
 /** Puts tactics in the faked save, as if the player had made them earlier. */
@@ -305,6 +308,7 @@ export function fakeBackend(failPreset = false) {
     // As the real command: the saved tactic's formation and style, and nothing else for one saved
     // before tactics held their contents (these seeds hold none), so the dials stay the manager's.
     if (command === "apply_custom_tactic") {
+      if (knobs.applyCustomTacticGate) await knobs.applyCustomTacticGate;
       const saved = savedTactics.find((tactic) => tactic.id === params.id);
       if (!saved) throw new Error("be.error.customTactic.notFound");
       team.formation = saved.formation;

@@ -43,10 +43,10 @@ export function useTacticSelection({
       : t("tactics.customTactic"),
   );
   const [presetAnchorId, setPresetAnchorId] = useState<string | null>(initialPreset?.id ?? null);
-  // A saved tactic whose delete the save has not answered yet. It is gone from the picker at once,
-  // but the selection must not fall back to a preset for it until the save has accepted: a refused
-  // delete puts the tactic back, and it should still be the active one.
-  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  // A saved tactic whose delete the save has not answered yet. It is gone from the picker at once, but
+  // it stays the active one until the save has accepted (the command bar keeps showing it, and the
+  // selection does not fall back to a preset for it): a refused delete puts the tactic back.
+  const [pendingDelete, setPendingDelete] = useState<TacticsLibraryEntry | null>(null);
 
   const matchedPreset = findTacticsPresetBySetup(formation, activePlayStyle);
   const anchoredPreset = presetAnchorId
@@ -87,6 +87,7 @@ export function useTacticSelection({
   );
   const activeTactic =
     tacticLibrary.find((entry) => entry.id === activeTacticId) ??
+    (pendingDelete && pendingDelete.id === activeTacticId ? pendingDelete : undefined) ??
     translatedPresetLibrary.find((entry) => entry.id === `preset:${matchedPreset?.id}`) ??
     currentSetupFallbackTactic;
   const isActiveCustomTactic = activeTactic?.type === "custom";
@@ -122,11 +123,11 @@ export function useTacticSelection({
     setActiveTacticId((current) =>
       tacticLibrary.find((entry) => entry.id === current)?.type === "custom" ||
       current === nextActivePresetId ||
-      current === pendingDeleteId
+      (pendingDelete !== null && current === pendingDelete.id)
         ? current
         : nextActivePresetId,
     );
-  }, [matchedPreset, presetAnchorId, tacticLibrary, pendingDeleteId]);
+  }, [matchedPreset, presetAnchorId, tacticLibrary, pendingDelete]);
 
   useEffect(() => {
     if (!activeTactic) {
@@ -171,7 +172,7 @@ export function useTacticSelection({
     isCommandBarDirty,
     draftTacticName,
     setActiveTacticId,
-    setPendingDeleteId,
+    setPendingDelete,
     setDraftTacticName,
     presetAnchorId,
     setPresetAnchorId,

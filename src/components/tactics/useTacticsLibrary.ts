@@ -72,7 +72,7 @@ export function useTacticsLibrary({
     isCommandBarDirty,
     draftTacticName,
     setActiveTacticId,
-    setPendingDeleteId,
+    setPendingDelete,
     setDraftTacticName,
     presetAnchorId,
     setPresetAnchorId,
@@ -85,7 +85,7 @@ export function useTacticsLibrary({
     userTeam,
     blueprintModified,
   });
-  const { applyTacticSelection, appliesSettled } = useApplyTactic({
+  const { applyTacticSelection, appliesSettled, runAfterApplies } = useApplyTactic({
     onApplyPreset,
     onKeepInstructions,
     onGameUpdate,
@@ -135,10 +135,10 @@ export function useTacticsLibrary({
     if (!canDeleteTactic) return;
 
     const { id } = activeTactic;
-    setPendingDeleteId(id);
+    setPendingDelete(activeTactic);
     setCustomTactics((current) => current.filter((entry) => entry.id !== id));
     void changeSave(() => deleteCustomTactic(id.trim(), careerToken)).then(() =>
-      setPendingDeleteId((pending) => (pending === id ? null : pending)),
+      setPendingDelete((pending) => (pending?.id === id ? null : pending)),
     );
   }
 
@@ -226,6 +226,7 @@ export function useTacticsLibrary({
     handleResetTactic,
     applyTacticSelection,
     appliesSettled,
+    runAfterApplies,
     handleCreateCustomTactic,
     handleDuplicateTactic,
     handleSaveTactic,
