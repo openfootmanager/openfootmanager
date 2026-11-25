@@ -320,6 +320,26 @@ fn prune_stale_transfer_rumours(league: &mut League, current_date: NaiveDate) {
     });
 }
 
+/// The league whose transfer rumours are the player's: the user's competition, or the legacy
+/// mirror in a save old enough to have none. A rumour written to the mirror alone is dropped on
+/// load, when the mirror is rebuilt from the competition it mirrors (#1266).
+fn rumour_league_mut(game: &mut Game) -> Option<&mut League> {
+    if game.competitions.is_empty() {
+        return game.league.as_mut();
+    }
+    let mirrored = game.league.as_ref().map(|league| league.id.clone());
+    let index = game
+        .user_competition_index()
+        .or_else(|| {
+            let mirrored = mirrored.as_deref()?;
+            game.competitions
+                .iter()
+                .position(|competition| competition.id == mirrored)
+        })
+        .unwrap_or(0);
+    game.competitions.get_mut(index)
+}
+
 fn weekly_rumour_articles(
     game: &mut Game,
     suffix: &str,
@@ -329,54 +349,53 @@ fn weekly_rumour_articles(
     let current_date = game.clock.current_date.date_naive();
     let existing_article_ids: HashSet<String> =
         game.news.iter().map(|article| article.id.clone()).collect();
-    let Some(league) = game.league.as_mut() else {
-        return vec![];
-    };
-    prune_stale_transfer_rumours(league, current_date);
+    if let Some(league) = rumour_league_mut(game) {
+        prune_stale_transfer_rumours(league, current_date);
+    }
     let candidates = rumour_candidates(game);
-    if candidates.is_empty() {
-        return vec![];
-    }
-    let Some(league) = game.league.as_mut() else {
-        return vec![];
-    };
-
-    // Pick at most 2 distinct players
-    let count = candidates.len().min(MAX_WEEKLY_TRANSFER_RUMOURS);
-    let mut chosen_indices: Vec<usize> = (0..candidates.len()).collect();
-    chosen_indices.shuffle(&mut rng);
-    chosen_indices.truncate(count);
-
     let mut articles = Vec::new();
-    for idx in chosen_indices {
-        let (player_id, player_name, team_id, team_name) = &candidates[idx];
-        let article_id = format!("rumour_{}_{}", player_id, suffix);
-        if existing_article_ids.contains(&article_id)
-            || league
-                .transfer_rumours
-                .iter()
-                .any(|rumour| rumour.id == article_id)
-        {
-            continue;
-        }
+    if !candidates.is_empty()
+        && let Some(league) = rumour_league_mut(game)
+    {
+        // Pick at most 2 distinct players
+        let count = candidates.len().min(MAX_WEEKLY_TRANSFER_RUMOURS);
+        let mut chosen_indices: Vec<usize> = (0..candidates.len()).collect();
+        chosen_indices.shuffle(&mut rng);
+        chosen_indices.truncate(count);
 
-        league.transfer_rumours.push(TransferRumour {
-            id: article_id.clone(),
-            date: date.to_string(),
-            player_id: player_id.clone(),
-            player_name: player_name.clone(),
-            team_id: team_id.clone(),
-            team_name: team_name.clone(),
-        });
-        articles.push(news::transfer_rumour_gossip_article(
-            &article_id,
-            player_id,
-            player_name,
-            team_id,
-            team_name,
-            date,
-        ));
+        for idx in chosen_indices {
+            let (player_id, player_name, team_id, team_name) = &candidates[idx];
+            let article_id = format!("rumour_{}_{}", player_id, suffix);
+            if existing_article_ids.contains(&article_id)
+                || league
+                    .transfer_rumours
+                    .iter()
+                    .any(|rumour| rumour.id == article_id)
+            {
+                continue;
+            }
+
+            league.transfer_rumours.push(TransferRumour {
+                id: article_id.clone(),
+                date: date.to_string(),
+                player_id: player_id.clone(),
+                player_name: player_name.clone(),
+                team_id: team_id.clone(),
+                team_name: team_name.clone(),
+            });
+            articles.push(news::transfer_rumour_gossip_article(
+                &article_id,
+                player_id,
+                player_name,
+                team_id,
+                team_name,
+                date,
+            ));
+        }
     }
+    // The legacy mirror is what the save's league row keeps and what the Home screens read, so it
+    // must carry the rumours the competition now holds.
+    game.sync_legacy_league();
 
     articles
 }
