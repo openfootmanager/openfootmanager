@@ -67,17 +67,27 @@ export function useCustomTacticStore({
     confirmedLibrary.current = { epoch, entries };
     return entries;
   }
-  // Tactics the manager made or changed whose own save has not answered yet. A save's reply is the
-  // whole list as the save had it when it answered, so one that predates a later tactic does not
-  // hold it: shown as it is, it would drop that tactic (and the active tactic with it) until the
-  // later save answers. What is pending is laid over every reply, and leaves when its own save has
-  // answered, accepted or refused (a refused one is then not in the list the save hands back).
-  const pendingUpserts = useRef(new Map<string, TacticsLibraryEntry>());
+  // What the manager has made, changed or deleted whose own save has not answered yet. A save's reply
+  // is the whole list as the save had it when it answered, so one that predates a later change does
+  // not show it: published as it is, it would drop a tactic just made (and the active tactic with
+  // it), bring back one just deleted, or put back the fields of an earlier save of the same tactic.
+  // What is pending is laid over every reply. Each id has one owner: the latest operation on it, so
+  // an earlier operation settling leaves the later one's change in place, and an operation removes
+  // its change only when it still owns it, before its own reply is published (a refused change is
+  // then absent from the list the save hands back).
+  const pendingChanges = useRef(
+    new Map<string, { operation: number; entry: TacticsLibraryEntry | null }>(),
+  );
+  const operations = useRef(0);
   function withPending(entries: TacticsLibraryEntry[]): TacticsLibraryEntry[] {
-    const pending = [...pendingUpserts.current.values()];
-    if (pending.length === 0) return entries;
-    const newest = pending.filter((p) => !entries.some((e) => e.id === p.id)).reverse();
-    return [...newest, ...entries.map((e) => pendingUpserts.current.get(e.id) ?? e)];
+    const changes = [...pendingChanges.current.entries()];
+    if (changes.length === 0) return entries;
+    const pendingEntry = (id: string) => pendingChanges.current.get(id)?.entry ?? null;
+    const made = changes.flatMap(([, change]) => (change.entry ? [change.entry] : []));
+    const newest = made.filter((entry) => !entries.some((e) => e.id === entry.id)).reverse();
+    return [...newest, ...entries.map((e) => pendingEntry(e.id) ?? e)].filter(
+      (e) => !(pendingChanges.current.has(e.id) && pendingEntry(e.id) === null),
+    );
   }
   // The career whose library is on screen. A load for another career empties the picker at once,
   // so its answer does not have to replace the old career's tactics; the same career reloading under
@@ -98,7 +108,7 @@ export function useCustomTacticStore({
     const career = `${managerId}|${careerStartDate}|${careerEpoch}`;
     if (shownCareer.current !== null && shownCareer.current !== career) {
       setCustomTactics([]);
-      pendingUpserts.current.clear();
+      pendingChanges.current.clear();
       confirmedLibrary.current = null;
     }
     shownCareer.current = career;
@@ -152,10 +162,18 @@ export function useCustomTacticStore({
     change: () => Promise<CustomTactic[]>,
     // Where a refusal goes: the screen's alert, or a dialog that asked and shows the reason itself.
     reportRefusal: (error: unknown) => void = onWriteError,
-    // The tactic this change makes or changes, kept on screen until the save has answered for it.
-    pending?: TacticsLibraryEntry,
+    // What this change makes, changes or (with no entry) deletes, shown until the save has answered.
+    pending?: { id: string; entry?: TacticsLibraryEntry },
   ): Promise<boolean> {
-    if (pending) pendingUpserts.current.set(pending.id, pending);
+    const operation = ++operations.current;
+    if (pending) {
+      pendingChanges.current.set(pending.id, { operation, entry: pending.entry ?? null });
+    }
+    const release = () => {
+      if (pending && pendingChanges.current.get(pending.id)?.operation === operation) {
+        pendingChanges.current.delete(pending.id);
+      }
+    };
     const askedIn = useGameStore.getState().careerEpoch;
     const stale = () => useGameStore.getState().careerEpoch !== askedIn;
     let accepted = true;
@@ -170,7 +188,7 @@ export function useCustomTacticStore({
               if (!stale()) reportRefusal(error);
               return listCustomTactics().catch(() => {
                 if (!stale()) {
-                  if (pending) pendingUpserts.current.delete(pending.id);
+                  release();
                   const confirmed = confirmedLibrary.current;
                   setCustomTactics(
                     withPending(confirmed?.epoch === askedIn ? confirmed.entries : []),
@@ -181,14 +199,14 @@ export function useCustomTacticStore({
             }),
       )
       .then((saved) => {
-        if (pending) pendingUpserts.current.delete(pending.id);
+        release();
         if (saved && !stale()) setCustomTactics(withPending(confirmLibrary(saved, askedIn)));
         const held = saved !== null && accepted && !stale();
         if (held) onWriteSaved();
         return accepted && !stale();
       })
       .catch(() => {
-        if (pending) pendingUpserts.current.delete(pending.id);
+        release();
         return false;
       });
     savesInOrder.current = answered.then(() => undefined);
@@ -198,11 +216,10 @@ export function useCustomTacticStore({
   // A save is the team's tactic as it stands, whole (#1189): the backend reads it from the team,
   // and the entry only gives it its id, name and description.
   function persistTactic(tactic: TacticsLibraryEntry): Promise<boolean> {
-    return changeSave(
-      () => saveCurrentTactic(toCustomTactic(tactic), careerToken),
-      onWriteError,
-      tactic,
-    );
+    return changeSave(() => saveCurrentTactic(toCustomTactic(tactic), careerToken), onWriteError, {
+      id: tactic.id,
+      entry: tactic,
+    });
   }
 
   return {

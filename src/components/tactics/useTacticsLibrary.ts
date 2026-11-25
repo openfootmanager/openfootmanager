@@ -135,7 +135,7 @@ export function useTacticsLibrary({
 
     const { id } = activeTactic;
     setCustomTactics((current) => current.filter((entry) => entry.id !== id));
-    changeSave(() => deleteCustomTactic(id.trim(), careerToken));
+    changeSave(() => deleteCustomTactic(id.trim(), careerToken), undefined, { id });
   }
 
   // Renames the saved tactic `id` (the one the dialog was opened for, which may no longer be the
