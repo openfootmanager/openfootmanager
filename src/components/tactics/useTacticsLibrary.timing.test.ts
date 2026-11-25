@@ -59,10 +59,10 @@ const callsTo = (command: string) => mockedInvoke.mock.calls.filter(([c]) => c =
 
 function mount(initialGame = career("mgr1")) {
   return renderHook(
-    ({ game }: { game: GameStateData }) =>
+    ({ game, formation = "4-4-2" }: { game: GameStateData; formation?: string }) =>
       useTacticsLibrary({
         gameState: game,
-        formation: "4-4-2",
+        formation,
         activePlayStyle: "Balanced",
         initialPreset: null,
         onApplyPreset: vi.fn(),
@@ -71,7 +71,7 @@ function mount(initialGame = career("mgr1")) {
         onWriteError: vi.fn(),
         onWriteSaved: vi.fn(),
       }),
-    { initialProps: { game: initialGame } },
+    { initialProps: { game: initialGame } as { game: GameStateData; formation?: string } },
   );
 }
 
@@ -195,5 +195,94 @@ describe("useCustomTacticStore timing (#1438)", () => {
     expect(customIds(result)).toEqual(["a"]);
     await act(async () => reload.resolve([wire("a", "Away")]));
     expect(customIds(result)).toEqual(["a"]);
+  });
+
+  /**
+   * Given two tactics made, the first one's save still out, and the second then deleted
+   * When the first save's reply arrives (a list without the second)
+   * Then the deleted tactic stays out of the picker, while its own save and its delete are still
+   *      waiting, and after the delete has answered: a pending delete is not undone by an older reply.
+   */
+  it("keeps a deleted tactic out of the picker while earlier saves answer", async () => {
+    const saves: Array<ReturnType<typeof deferred<unknown[]>>> = [];
+    const deleteReply = deferred<unknown[]>();
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "list_custom_tactics") return [];
+      if (command === "legacy_tactics_import_pending") return false;
+      if (command === "save_current_tactic") {
+        const reply = deferred<unknown[]>();
+        saves.push(reply);
+        return reply.promise;
+      }
+      if (command === "delete_custom_tactic") return deleteReply.promise;
+      return { modified: false };
+    });
+    const { result } = mount();
+    await waitFor(() => expect(result.current.libraryLoaded).toBe(true));
+    act(() => result.current.handleCreateCustomTactic());
+    const first = result.current.activeTactic.id;
+    await waitFor(() => expect(callsTo("save_current_tactic")).toHaveLength(1));
+    act(() => result.current.handleCreateCustomTactic());
+    const second = result.current.activeTactic.id;
+    await waitFor(() => expect(result.current.canDeleteTactic).toBe(true));
+    act(() => result.current.handleDeleteTactic());
+    expect(customIds(result)).toEqual([first]);
+
+    await act(async () => saves[0].resolve([wire(first)]));
+    expect(customIds(result)).toEqual([first]);
+
+    await waitFor(() => expect(callsTo("save_current_tactic")).toHaveLength(2));
+    await act(async () => saves[1].resolve([wire(second), wire(first)]));
+    expect(customIds(result)).toEqual([first]);
+
+    await waitFor(() => expect(callsTo("delete_custom_tactic")).toHaveLength(1));
+    expect(customIds(result)).toEqual([first]);
+    await act(async () => deleteReply.resolve([wire(first)]));
+    expect(customIds(result)).toEqual([first]);
+  });
+
+  /**
+   * Given a saved tactic saved twice in a row, the setup changed in between, and the first save's
+   *       reply still out (it carries the tactic as it was first saved)
+   * When the first save's reply arrives
+   * Then the picker keeps the newer save's optimistic tactic: an older answer must not put back the
+   *      older fields, nor clear what the newer save still waits for.
+   */
+  it("keeps the newer save's fields when an older save of the same tactic answers", async () => {
+    const saves: Array<ReturnType<typeof deferred<unknown[]>>> = [];
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "list_custom_tactics") return [];
+      if (command === "legacy_tactics_import_pending") return false;
+      if (command === "save_current_tactic") {
+        const reply = deferred<unknown[]>();
+        saves.push(reply);
+        return reply.promise;
+      }
+      return { modified: false };
+    });
+    const { result, rerender } = mount();
+    await waitFor(() => expect(result.current.libraryLoaded).toBe(true));
+    act(() => result.current.handleCreateCustomTactic());
+    const id = result.current.activeTactic.id;
+    await waitFor(() => expect(callsTo("save_current_tactic")).toHaveLength(1));
+    await act(async () => saves[0].resolve([{ ...wire(id), formation: "4-4-2" }]));
+    await waitFor(() => expect(result.current.canDeleteTactic).toBe(true));
+
+    // Two saves of the same tactic: the first under 4-4-2 (held), then the setup moves to 4-3-3.
+    await act(async () => {
+      void result.current.handleSaveTactic();
+    });
+    await waitFor(() => expect(callsTo("save_current_tactic")).toHaveLength(2));
+    rerender({ game: career("mgr1"), formation: "4-3-3" });
+    await act(async () => {
+      void result.current.handleSaveTactic();
+    });
+    const shownFormation = () =>
+      result.current.tacticLibrary.find((entry) => entry.id === id)?.formation;
+    expect(shownFormation()).toBe("4-3-3");
+
+    await act(async () => saves[1].resolve([{ ...wire(id), formation: "4-4-2" }]));
+
+    expect(shownFormation()).toBe("4-3-3");
   });
 });
