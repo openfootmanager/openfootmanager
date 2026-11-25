@@ -1036,6 +1036,48 @@
       }
     },
     {
+      "name": "a press conference with a quote whose money param is an array keeps the quote the backend wrote",
+      "kind": "article",
+      "input": {
+        "id": "press_param_array",
+        "headline_key": "be.news.pressConference.headlineManagerQuote",
+        "body_key": "be.news.pressConference.bodySingle",
+        "source_key": "be.source.leagueWire",
+        "i18n_params": {
+          "team": "South",
+          "result": "0-3",
+          "quote": "A tough afternoon",
+          "quotesData": "[{\"key\":\"match.press.playerFocus.responses.praise.text\",\"fallback\":\"A tough afternoon\",\"params\":{\"playerName\":\"J. Doe\",\"fee\":[]}}]"
+        }
+      },
+      "expected": {
+        "headline": "South Manager: A tough afternoon",
+        "body": "The South manager spoke briefly after the 0-3 result.\n\n\"A tough afternoon\"",
+        "source": "League Wire"
+      }
+    },
+    {
+      "name": "a press conference with a quote whose params are a list holding a number keeps the quote the backend wrote",
+      "kind": "article",
+      "input": {
+        "id": "press_param_list",
+        "headline_key": "be.news.pressConference.headlineManagerQuote",
+        "body_key": "be.news.pressConference.bodySingle",
+        "source_key": "be.source.leagueWire",
+        "i18n_params": {
+          "team": "South",
+          "result": "0-3",
+          "quote": "A tough afternoon",
+          "quotesData": "[{\"key\":\"match.press.playerFocus.responses.praise.text\",\"fallback\":\"A tough afternoon\",\"params\":[5]}]"
+        }
+      },
+      "expected": {
+        "headline": "South Manager: A tough afternoon",
+        "body": "The South manager spoke briefly after the 0-3 result.\n\n\"A tough afternoon\"",
+        "source": "League Wire"
+      }
+    },
+    {
       "name": "a preseason digest with an unbeaten club that is no name keeps the lines the backend wrote",
       "kind": "article",
       "input": {
