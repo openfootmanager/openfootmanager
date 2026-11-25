@@ -95,7 +95,7 @@ pub fn envelope_reallocation_preview(
     match projected_envelope_reallocation(game, club_id, wage_delta_weekly) {
         Ok(next) => EnvelopeReallocationPreview {
             wage_delta_weekly,
-            transfer_delta: -transfer_delta,
+            transfer_delta: transfer_delta.saturating_neg(),
             next_wage_budget: next.wage_budget,
             next_transfer_budget: next.transfer_budget,
             allowed: wage_delta_weekly != 0,
@@ -103,7 +103,7 @@ pub fn envelope_reallocation_preview(
         },
         Err(reason) => EnvelopeReallocationPreview {
             wage_delta_weekly,
-            transfer_delta: -transfer_delta,
+            transfer_delta: transfer_delta.saturating_neg(),
             next_wage_budget,
             next_transfer_budget,
             allowed: false,
@@ -380,5 +380,28 @@ mod tests {
             Some(ERR_REALLOCATION_INVALID)
         );
         assert_eq!(game.teams[0].wage_budget, 500);
+    }
+
+    /// Given a wage cut of i64::MIN
+    /// When the reallocation preview is read
+    /// Then it is refused with a block reason and the transfer delta saturates instead of overflowing.
+    #[test]
+    fn preview_refuses_an_i64_min_wage_cut_without_overflow() {
+        let game = make_game();
+
+        let preview = envelope_reallocation_preview(&game, "buyer", i64::MIN);
+
+        assert!(!preview.allowed);
+        assert_eq!(
+            preview.block_reason.as_deref(),
+            Some(ERR_REALLOCATION_INVALID)
+        );
+        assert_eq!(
+            preview.transfer_delta,
+            i64::MIN.saturating_mul(52).saturating_neg()
+        );
+        assert_eq!(preview.wage_delta_weekly, i64::MIN);
+        assert_eq!(game.teams[0].wage_budget, 200_000);
+        assert_eq!(game.teams[0].transfer_budget, 2_000_000);
     }
 }
