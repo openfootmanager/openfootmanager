@@ -285,4 +285,48 @@ describe("useCustomTacticStore timing (#1438)", () => {
 
     expect(shownFormation()).toBe("4-3-3");
   });
+
+  /**
+   * Given a tactic made and saved, and a delete of it that the save refuses
+   * When the refusal arrives (the save's list still holds the tactic)
+   * Then the tactic is back in the picker: a delete that the save refused must not stay applied, and
+   *      its pending delete must not hide the tactic from the list that follows.
+   */
+  it.each([
+    ["the save lists it again", false],
+    ["the list cannot be read either", true],
+  ] as const)("puts a tactic back when its delete is refused and %s", async (_name, listFails) => {
+    const deleteReply = deferred<unknown[]>();
+    const kept: unknown[] = [];
+    let listing = false;
+    mockedInvoke.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "list_custom_tactics") {
+        if (listing && listFails) throw new Error("the save is busy");
+        return [...kept];
+      }
+      if (command === "legacy_tactics_import_pending") return false;
+      if (command === "save_current_tactic") {
+        kept.push((args as { tactic: unknown }).tactic);
+        return [...kept];
+      }
+      if (command === "delete_custom_tactic") {
+        listing = true;
+        return deleteReply.promise;
+      }
+      return { modified: false };
+    });
+    const { result } = mount();
+    await waitFor(() => expect(result.current.libraryLoaded).toBe(true));
+    act(() => result.current.handleCreateCustomTactic());
+    const id = result.current.activeTactic.id;
+    await waitFor(() => expect(callsTo("save_current_tactic")).toHaveLength(1));
+    await waitFor(() => expect(result.current.canDeleteTactic).toBe(true));
+
+    act(() => result.current.handleDeleteTactic());
+    expect(customIds(result)).toEqual([]);
+    await waitFor(() => expect(callsTo("delete_custom_tactic")).toHaveLength(1));
+    await act(async () => deleteReply.reject("be.error.customTactic.notFound"));
+
+    await waitFor(() => expect(customIds(result)).toEqual([id]));
+  });
 });
