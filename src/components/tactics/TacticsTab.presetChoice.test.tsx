@@ -220,6 +220,14 @@ describe("TacticsTab preset question", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS },
         playStyle: "HighPress",
       }),
     );
+    // The bar says it is loading until the apply has landed; the badge is back after it.
+    await waitFor(
+      () =>
+        expect(screen.getByRole("group", { name: "Tactic" })).toHaveAttribute("aria-busy", "false"),
+      {
+        timeout: 5000,
+      },
+    );
     expect(await screen.findByText("Unsaved changes")).toBeInTheDocument();
   });
 

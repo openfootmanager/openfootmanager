@@ -81,7 +81,8 @@ describe("TacticsCommandBar", () => {
    *      is loading; with nothing out, none of that.
    */
   it("turns every control that could change the tactic off while busy, and says why", () => {
-    const { rerender } = renderCommandBar({ busy: true });
+    // Dirty, so Save would be on if nothing were out: it is the busy state that turns it off.
+    const { rerender } = renderCommandBar({ busy: true, isDirty: true });
     const group = screen.getByRole("group", { name: "tactics.tacticBar" });
 
     expect(group).toHaveAttribute("aria-busy", "true");
@@ -102,6 +103,9 @@ describe("TacticsCommandBar", () => {
     expect(screen.getByRole("combobox", { name: "tactics.playStyle" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "tactics.tacticActions" })).toBeEnabled();
     expect(screen.queryByText("tactics.loadingTactics")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: /tactics\.(updateTactic|saveAsTactic)/ }),
+    ).toBeEnabled();
   });
 
   it("disables the save button when the active custom tactic is already synced", () => {
