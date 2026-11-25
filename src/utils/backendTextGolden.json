@@ -1142,6 +1142,86 @@
       }
     },
     {
+      "name": "a competition report whose name key reads the year, with a season, names the year as the screen reads it",
+      "kind": "article",
+      "input": {
+        "id": "report_year_0",
+        "headline_key": "be.news.matchReport.reportCompetition.title",
+        "body_key": "be.news.matchReport.reportCompetition.body",
+        "source_key": "be.source.footballHerald",
+        "i18n_params": {
+          "home": "North",
+          "away": "South",
+          "homeGoals": "0",
+          "awayGoals": "0",
+          "competition": "Stored Cup",
+          "competitionKey": "hallOfFameWorld.worldCupEdition",
+          "competitionSeason": "2026",
+          "scorers": "",
+          "scorersSection": "",
+          "scorersData": "[]"
+        }
+      },
+      "expected": {
+        "headline": "North 0 - 0 South: Match report (2026 World Cup)",
+        "body": "2026 World Cup: the match ended North 0 - 0 South.",
+        "source": "The Football Herald"
+      }
+    },
+    {
+      "name": "a competition report whose name key reads the year, with a blank season, names the year as the screen reads it",
+      "kind": "article",
+      "input": {
+        "id": "report_year_1",
+        "headline_key": "be.news.matchReport.reportCompetition.title",
+        "body_key": "be.news.matchReport.reportCompetition.body",
+        "source_key": "be.source.footballHerald",
+        "i18n_params": {
+          "home": "North",
+          "away": "South",
+          "homeGoals": "0",
+          "awayGoals": "0",
+          "competition": "Stored Cup",
+          "competitionKey": "hallOfFameWorld.worldCupEdition",
+          "competitionSeason": "",
+          "scorers": "",
+          "scorersSection": "",
+          "scorersData": "[]"
+        }
+      },
+      "expected": {
+        "headline": "North 0 - 0 South: Match report (0 World Cup)",
+        "body": "0 World Cup: the match ended North 0 - 0 South.",
+        "source": "The Football Herald"
+      }
+    },
+    {
+      "name": "a competition report whose name key reads the year, with no season, names the year as the screen reads it",
+      "kind": "article",
+      "input": {
+        "id": "report_year_2",
+        "headline_key": "be.news.matchReport.reportCompetition.title",
+        "body_key": "be.news.matchReport.reportCompetition.body",
+        "source_key": "be.source.footballHerald",
+        "i18n_params": {
+          "home": "North",
+          "away": "South",
+          "homeGoals": "0",
+          "awayGoals": "0",
+          "competition": "Stored Cup",
+          "competitionKey": "hallOfFameWorld.worldCupEdition",
+          "scorers": "",
+          "scorersSection": "",
+          "scorersData": "[]"
+        }
+      },
+      "expected": {
+        "headline": "North 0 - 0 South: Match report (World Cup)",
+        "body": "World Cup: the match ended North 0 - 0 South.",
+        "source": "The Football Herald"
+      }
+    },
+    {
       "name": "a season-awards winner at no club, by any of its spellings, is a free agent",
       "kind": "article",
       "input": {
