@@ -69,6 +69,14 @@ fn wage_soft_cap(wage_budget: i64) -> i64 {
     (wage_budget * WAGE_SOFT_CAP_PCT) / 100
 }
 
+/// Whether the board lets a club hire staff at `projected_bill`.
+///
+/// Hires have no renewal grace: a club already over the 110% cap cannot take
+/// on more staff until the bill is cut or the wage envelope is raised.
+pub fn hire_wage_policy_allows(team: &Team, projected_bill: i64) -> bool {
+    projected_bill <= wage_soft_cap(team.wage_budget)
+}
+
 pub fn wage_policy_allows_projection(team: &Team, current_bill: i64, projected_bill: i64) -> bool {
     if !wage_bill_over_budget(current_bill, team.wage_budget) {
         return projected_bill <= wage_soft_cap(team.wage_budget);
@@ -237,6 +245,14 @@ pub fn renewal_wage_policy_error_message(team: &Team) -> String {
     )
 }
 
+pub fn hire_wage_policy_error_message(team: &Team) -> String {
+    backend_error_with_param(
+        "be.error.contracts.boardHireWagePolicy",
+        "budget",
+        team.wage_budget,
+    )
+}
+
 pub fn loan_borrower_wage_policy_error_message(borrower: &Team) -> String {
     backend_error_with_param(
         "be.error.transfers.loanBorrowerCannotAffordWages",
@@ -270,4 +286,64 @@ pub fn project_renewal_financial_impact(
         player,
         offered_wage,
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use domain::team::Team;
+
+    fn team_with_budget(wage_budget: i64) -> Team {
+        let mut team = Team::new(
+            "team-1".to_string(),
+            "User FC".to_string(),
+            "USR".to_string(),
+            "England".to_string(),
+            "London".to_string(),
+            "User Ground".to_string(),
+            25_000,
+        );
+        team.wage_budget = wage_budget;
+        team
+    }
+
+    /// Given a projected bill on the board's 110% cap
+    /// When a hire is judged
+    /// Then the board allows it.
+    #[test]
+    fn hire_wage_policy_allows_a_bill_on_the_soft_cap() {
+        let team = team_with_budget(10_000);
+        assert!(hire_wage_policy_allows(&team, 11_000));
+    }
+
+    /// Given a projected bill one euro past the 110% cap
+    /// When a hire is judged
+    /// Then the board refuses it.
+    #[test]
+    fn hire_wage_policy_refuses_a_bill_past_the_soft_cap() {
+        let team = team_with_budget(10_000);
+        assert!(!hire_wage_policy_allows(&team, 11_001));
+    }
+
+    /// Given the club is already on the 110% cap
+    /// When another hire is judged under the renewal over-budget grace
+    /// Then the hire policy still refuses.
+    #[test]
+    fn hire_wage_policy_does_not_grant_renewal_grace() {
+        let team = team_with_budget(10_000);
+        assert!(wage_policy_allows_projection(&team, 11_000, 12_000));
+        assert!(!hire_wage_policy_allows(&team, 12_000));
+    }
+
+    /// Given a hire the board wage policy refuses
+    /// When the hire path builds the error
+    /// Then the message uses the hire key and the club's weekly wage cap.
+    #[test]
+    fn hire_wage_policy_error_uses_the_hire_key() {
+        let team = team_with_budget(10_000);
+        assert_eq!(
+            hire_wage_policy_error_message(&team),
+            "be.error.contracts.boardHireWagePolicy?budget=10000"
+        );
+    }
 }

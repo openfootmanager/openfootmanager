@@ -1225,6 +1225,12 @@
     "requestBoardSupport": "申请支持",
     "boardSupportUnavailable": "董事会支持仅提供给负债或接近现金危机的俱乐部。",
     "boardSupportSummary": "董事会批准了 {{amount}} 的紧急资金。转会预算减少 {{transferBudgetReduction}}，董事会信任下降 {{satisfactionPenalty}}。",
+    "reallocateEnvelopes": "董事会额度",
+    "reallocateEnvelopesDescription": "在周薪额度与转会限额之间调配。不会动用现金。",
+    "raiseWageBudget": "提高工资预算",
+    "raiseTransferBudget": "提高转会预算",
+    "reallocateStep": "{{wage}} ⇔ {{transfer}} 转会",
+    "reallocateSummary": "工资预算 {{wage}}。转会限额 {{transfer}}。现金不变。",
     "wagePressure": "工资压力",
     "wageBudgetUsed": "已使用工资预算 {{percent}}%",
     "contractRisk": "合同风险",
@@ -3189,6 +3195,8 @@
       "finance": {
         "boardSupportUnavailable": "只有当现金储备承压时，董事会紧急支持才可用。",
         "boardSupportAlreadyUsed": "董事会本赛季已经批准过一次紧急支持。",
+        "reallocationInvalid": "这项额度调整会把董事会限额压到零以下。",
+        "reallocationBreachesReservations": "这项调整会使转会额度低于俱乐部已经预留的金额。",
         "sponsorPitchUnavailable": "只有当俱乐部面临工资或现金压力时，才能发起赞助接洽。",
         "sponsorPitchPendingOffer": "已经有一份赞助报价在等待你的决定。",
         "sponsorPitchAlreadyAttemptedToday": "商务团队今天已经接洽过赞助商。",
@@ -3249,7 +3257,8 @@
         "terminationWouldLeaveMatchdaySquadShort": "终止这份合同会让你的阵容无法在比赛日排出首发十一人",
         "noAssistantManagerAssigned": "你的球队没有分配助理教练",
         "playerHasNoTeam": "该球员没有所属球队",
-        "boardWagePolicy": "这次续约被董事会薪资政策阻止。请将每周薪资控制在接近 {{budget}} 的水平以恢复状况。"
+        "boardWagePolicy": "这次续约被董事会薪资政策阻止。请将每周薪资控制在接近 {{budget}} 的水平以恢复状况。",
+        "boardHireWagePolicy": "这次聘用被董事会薪资政策阻止。请将每周薪资控制在接近 {{budget}} 的水平。"
       },
       "scouting": {
         "scoutNotFound": "未找到球探",

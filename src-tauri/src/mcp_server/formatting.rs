@@ -106,6 +106,9 @@ fn fixed_message(key: &str) -> String {
         "be.error.contracts.boardWagePolicy" => {
             "Board wage policy blocks this renewal: wage would exceed budget.".to_string()
         }
+        "be.error.contracts.boardHireWagePolicy" => {
+            "Board wage policy blocks this hire: wage would exceed budget.".to_string()
+        }
         "be.error.contracts.noAssistantManagerAssigned" => {
             "No assistant manager assigned. Hire one first.".to_string()
         }
@@ -361,6 +364,10 @@ mod tests {
                 "be.error.contracts.boardWagePolicy?budget=50000",
                 "Keep weekly wages near €50",
             ),
+            (
+                "be.error.contracts.boardHireWagePolicy?budget=50000",
+                "Keep weekly wages near €50",
+            ),
         ] {
             let rendered = translate_error(error);
 
@@ -375,7 +382,7 @@ mod tests {
         }
     }
 
-    /// Given the four keys that also have a sentence written for an agent, reported with no
+    /// Given the keys that also have a sentence written for an agent, reported with no
     ///       parameter (the bare key)
     /// When rendered for an agent
     /// Then it is that sentence, not `en.json`'s with an unfilled slot; with its parameter the
@@ -391,6 +398,10 @@ mod tests {
             (
                 "be.error.contracts.boardWagePolicy",
                 "Board wage policy blocks this renewal: wage would exceed budget.",
+            ),
+            (
+                "be.error.contracts.boardHireWagePolicy",
+                "Board wage policy blocks this hire: wage would exceed budget.",
             ),
             (
                 "be.error.finance.facilityUpgradeInsufficientFunds",

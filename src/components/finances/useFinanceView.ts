@@ -34,6 +34,7 @@ export function useFinanceView({
   const { t, i18n } = useTranslation();
   const {
     actionLoading,
+    reallocationLoading,
     answeringOfferId,
     sponsorOfferErrors,
     facilityUpgradeError,
@@ -45,6 +46,8 @@ export function useFinanceView({
     handleRequestBoardSupport,
     handleRequestSponsorPitch,
     handleRequestMarketingCampaign,
+    handleReallocateBoardEnvelopes,
+    reallocationFeedback,
     handleSponsorOption,
     handleDelegateRenewals: delegateRenewals,
   } = useFinanceActions(onGameUpdate);
@@ -167,6 +170,7 @@ export function useFinanceView({
     boardSupportPreviewText,
     canRequestBoardSupport,
     actionLoading,
+    reallocationLoading,
     handleRequestBoardSupport,
     boardSupportFeedback,
     previewsCurrent,
@@ -201,6 +205,10 @@ export function useFinanceView({
     financeData,
     facilityUpgradeError,
     handleUpgradeFacility,
+    handleReallocateBoardEnvelopes,
+    reallocationFeedback,
+    raiseWagePreview: recoveryPreviews?.raiseWage ?? null,
+    raiseTransferPreview: recoveryPreviews?.raiseTransfer ?? null,
     roster,
   };
 }

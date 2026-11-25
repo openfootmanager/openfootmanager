@@ -216,10 +216,10 @@ Computed per team before each training session:
 
 ### Hiring & Releasing
 
-- **Hire**: Assigns an unattached staff member to the user's team. The staff's wage is recorded as an expense.
-- **Release**: Removes the staff member from the team (becomes unattached again).
+- **Hire**: Assigns an unattached staff member to the user's team when the projected weekly wage bill stays within 110% of `wage_budget`. The hire posts no cash; Monday payday deducts `StaffWages`.
+- **Release**: Removes the staff member from the team (becomes unattached again). Does not reverse a cash post.
 
-The world generates 12 unattached free-agent staff at game start, plus 4 staff per team (AssistantManager, Coach, Scout, Physio).
+Generated club staff and the unattached market receive a closed weekly wage from role, club reputation, and the role's rated attribute. The world generates 12 unattached free-agent staff at game start, plus 4 staff per team (AssistantManager, Coach, Scout, Physio).
 
 ---
 
@@ -495,27 +495,20 @@ generation always has a working set. See [DEFINITIONS.md](DEFINITIONS.md).
 
 ## Finances
 
-Each team tracks financial state:
+Club cash is an append-only journal (`post` / `post_all`). `Team.finance` is a cache of that sum.
 
 | Field | Description |
 |-------|-------------|
-| `finance` | Current balance (can be negative) |
-| `wage_budget` | Weekly wage allowance |
-| `transfer_budget` | Available for transfers |
-| `season_income` | Cumulative income this season |
-| `season_expenses` | Cumulative expenses this season |
+| `finance` | Cached cash balance (can be negative) |
+| `wage_budget` | Cap on committed weekly wages (player + staff, loan-split) |
+| `transfer_budget` | Board limit on transfer fees; agreed `PendingRegistration` fees sit against it until settlement |
+| `season_income` / `season_expenses` | Gross in/out caches maintained from journal posts |
 
-### Income Sources
-- Match day revenue (future)
-- Prize money (future)
-- Sponsorship (future)
+Stored `Player.wage` / `Staff.wage` are weekly euros. Monday deducts those amounts (loanees split by `wage_contribution_pct`). Hiring staff commits the wage against the board's 110% policy and posts nothing; payday is the cash event.
 
-### Expenses
-- Staff wages (recorded on hire)
-- Player wages (weekly)
-- Transfer fees (future)
+`reallocate_board_envelopes` moves weekly wage permission against the transfer limit (`+Δ` weekly wage ⇔ `−52Δ` transfer) without posting cash. Agreed `PendingRegistration` fees still have to fit the new transfer limit. At season end the board refills the transfer limit to 15% of cash (the same share worldgen uses); wage permission is not refilled. Settlement still debits or credits the live transfer-budget scalar.
 
-The `FinancesTab` displays an overview with cards for balance, wage budget, transfer budget, and a payroll table.
+Gate income is paid for each completed home fixture in any competition. Sponsorship and prize money also post through the journal. The Finances tab reads `get_finance_snapshot`.
 
 ---
 
