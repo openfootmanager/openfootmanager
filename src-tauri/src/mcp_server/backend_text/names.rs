@@ -125,9 +125,9 @@ fn competition_display_name(
     };
     let mut params = Params::new();
     params.insert("country".to_string(), country);
-    if let Some(year) = season {
-        params.insert("year".to_string(), year);
-    }
+    // The screen passes the year to the translation even when there is none, and a value that is
+    // not there reads as nothing ("World Cup"), unlike a param the call never names.
+    params.insert("year".to_string(), season.unwrap_or_default());
     let template = english().get(name_key).map_or(stored, String::as_str);
     interpolate(template, &params, false).trim().to_string()
 }
