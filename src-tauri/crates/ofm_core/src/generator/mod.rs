@@ -1033,12 +1033,13 @@ fn build_package_club(
 
     let mut placed = vec![false; players.len()];
     let mut authored_ids = HashSet::new();
+    let mut authored_shirt_ids = HashSet::new();
     for def in authored {
-        let mut authored_player =
-            generate_player_from_def(def, &team.id, opening_year, names_def, rng);
+        let authored_player = generate_player_from_def(def, &team.id, opening_year, names_def, rng);
         if authored_player::authors_a_contract(def) {
             authored_ids.insert(authored_player.id.clone());
         }
+        authored_shirt_ids.insert(authored_player.id.clone());
         let group = authored_player.position.to_group_position();
         let slot = players
             .iter()
@@ -1060,10 +1061,9 @@ fn build_package_club(
                 placed[index] = true;
             }
             None => {
-                authored_player.jersey_number = crate::roster::jersey_among(
-                    players.iter().filter_map(|player| player.jersey_number),
-                    None,
-                );
+                // Numbered after trimming: the backfill players still hold numbers that the
+                // trim releases, and numbering now could leave an appended player with none
+                // (#1450).
                 players.push(authored_player);
                 placed.push(true);
             }
@@ -1071,6 +1071,23 @@ fn build_package_club(
     }
 
     trim_backfill_players(&mut players, &placed, authored.len(), opening_year as i32);
+
+    // Every authored player still without a shirt takes the lowest number the final squad
+    // leaves free, so a squad at the 99-number limit is numbered only once the trim has
+    // released what the backfill no longer needs.
+    let mut numbered: HashSet<u8> = players
+        .iter()
+        .filter_map(|player| player.jersey_number)
+        .collect();
+    for player in &mut players {
+        if player.jersey_number.is_none()
+            && authored_shirt_ids.contains(&player.id)
+            && let Some(number) = crate::roster::jersey_among(numbered.iter().copied(), None)
+        {
+            player.jersey_number = Some(number);
+            numbered.insert(number);
+        }
+    }
 
     // Authored wages may differ from the players they replaced, so re-normalise
     // the opening wage budget to the final squad. The authored players are named so
@@ -1961,6 +1978,72 @@ mod tests {
 
         assert_eq!(players.len(), 28, "authored squad should not be padded");
         assert_eq!(count_authored(&players), 28, "every authored player kept");
+    }
+
+    /// Given a package with seven authored strikers, one more than the generated squad's forward
+    /// slots
+    /// When the club is built
+    /// Then the appended striker wears the lowest number the final squad leaves free, and every
+    /// player's number is unique.
+    #[test]
+    fn an_appended_authored_player_takes_the_lowest_free_shirt() {
+        let authored = authored_squad(0, 0, 0, 7);
+        let players = build_test_package_club(&authored);
+
+        let appended = players
+            .iter()
+            .find(|player| player.match_name == "Authored6")
+            .expect("the seventh striker is the one appended to the squad");
+        let number = appended
+            .jersey_number
+            .expect("the appended striker wears a shirt number");
+        let others: std::collections::HashSet<u8> = players
+            .iter()
+            .filter(|player| player.id != appended.id)
+            .filter_map(|player| player.jersey_number)
+            .collect();
+        let lowest_free = (1u8..=99).find(|candidate| !others.contains(candidate));
+        assert_eq!(
+            Some(number),
+            lowest_free,
+            "the appended striker takes the lowest free number"
+        );
+        let all: std::collections::HashSet<u8> = players
+            .iter()
+            .filter_map(|player| player.jersey_number)
+            .collect();
+        assert_eq!(
+            all.len(),
+            players.len(),
+            "every player wears a unique number"
+        );
+    }
+
+    /// Given 99 authored players, one per shirt number, and a generated academy keeper that
+    /// trimming removes
+    /// When the club is built
+    /// Then all 99 players wear a number exactly once, including those appended at the limit.
+    #[test]
+    fn a_squad_at_the_shirt_limit_numbers_every_player() {
+        let authored = authored_squad(2, 33, 32, 32);
+        assert_eq!(
+            authored.len(),
+            99,
+            "the fixture is one player per shirt number"
+        );
+
+        let players = build_test_package_club(&authored);
+
+        assert_eq!(players.len(), 99, "the trimmed squad is the authored 99");
+        let numbers: std::collections::HashSet<u8> = players
+            .iter()
+            .filter_map(|player| player.jersey_number)
+            .collect();
+        assert_eq!(numbers.len(), 99, "all 99 numbers are worn exactly once");
+        assert!(
+            players.iter().all(|player| player.jersey_number.is_some()),
+            "no authored player is left without a shirt at the limit"
+        );
     }
 
     #[test]
