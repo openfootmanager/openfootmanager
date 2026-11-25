@@ -24,7 +24,10 @@ use uuid::Uuid;
 
 mod affordability;
 mod bids;
-use affordability::committed_transfer_fees_by_club;
+use affordability::{
+    committed_transfer_fees_by_club, settled_transfer_spend_by_club,
+    this_seasons_spend_includes_date,
+};
 mod consts;
 mod execution;
 mod lifecycle;
@@ -33,7 +36,11 @@ mod market;
 mod notifications;
 mod registration;
 
-pub(crate) use affordability::{available_transfer_budget, committed_transfer_fees};
+pub(crate) use affordability::fold_settled_spend_into_unrenewed_limits;
+pub use affordability::{
+    available_transfer_budget, committed_transfer_fees, lift_transfer_budgets_by_settled_spend,
+    settled_transfer_spend,
+};
 pub(crate) use affordability::{can_afford_fee, fee_block, transfer_fee_ceiling};
 pub use bids::*;
 use consts::*;
@@ -68,7 +75,9 @@ pub struct TransferNegotiationOutcome {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TransferBidFinancialProjection {
+    /// Spendable room before this bid: season limit minus reserved minus spent.
     pub transfer_budget_before: i64,
+    /// Spendable room after this bid.
     pub transfer_budget_after: i64,
     pub finance_before: i64,
     pub finance_after: i64,

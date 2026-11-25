@@ -1,3 +1,5 @@
+#[path = "end_of_season_tests/envelope_rollover.rs"]
+mod envelope_rollover;
 #[path = "end_of_season_tests/player_statistics.rs"]
 mod player_statistics;
 #[path = "end_of_season_tests/promotion_notices.rs"]

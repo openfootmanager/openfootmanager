@@ -716,6 +716,7 @@ fn prepare_loan_purchase(
         buying_team,
         fee,
         committed_transfer_fees(game, buying_team_id),
+        settled_transfer_spend(game, buying_team_id),
     )
     .map_err(|block| block.error_key().to_string())?;
 
@@ -740,7 +741,7 @@ fn prepare_loan_purchase(
     // The buyer's terms, and the board's say on them, settled before any money moves.
     // The option names a fee and nothing else.
     let (buying_club, new_wage, new_contract_end) =
-        buyers_contract_terms(game, &player_snapshot, buying_team_id)?;
+        buyers_contract_terms(game, &player_snapshot, buying_team_id, 0)?;
     Ok(LoanPurchaseTerms {
         player_id: player_id.to_string(),
         buying_team_id: buying_team_id.to_string(),
@@ -777,17 +778,11 @@ fn apply_loan_purchase(game: &mut Game, terms: &LoanPurchaseTerms) -> Result<(),
         ],
     )?;
 
+    // The season limit stays put: spent is the journal's TransferFeeOut/In, so
+    // sale proceeds raise available room via negative net spend. The buying club
+    // keeps the player; every other club drops him from roles and the XI.
     for team in &mut game.teams {
-        if team.id == terms.buying_team_id.as_str() {
-            team.transfer_budget -= terms.fee_i64;
-        } else if team.id == terms.parent_team_id.as_str() {
-            // Same rule as a permanent sale: the proceeds replenish this season's transfer
-            // envelope, not only the balance. The cash reaches the parent through the journal
-            // post above; crediting one and not the other left a club that sold through an
-            // option unable to spend what it had just earned.
-            team.transfer_budget += terms.fee_i64;
-            team.remove_player_references(terms.player_id.as_str());
-        } else {
+        if team.id != terms.buying_team_id.as_str() {
             team.remove_player_references(terms.player_id.as_str());
         }
     }
@@ -924,9 +919,10 @@ pub(crate) fn ai_should_exercise_loan_buy_option(
     loan_minutes: u32,
     loan_appearances: u32,
     committed: i64,
+    spent: i64,
 ) -> bool {
     // A zero buy option is no option at all, so it is refused before the club's means are asked.
-    if fee == 0 || !can_afford_fee(loan_team, fee, committed) {
+    if fee == 0 || !can_afford_fee(loan_team, fee, committed, spent) {
         return false;
     }
 
@@ -977,6 +973,7 @@ pub(crate) fn maybe_exercise_ai_loan_buy_option(game: &mut Game, player_id: &str
         loan_minutes,
         loan_appearances,
         committed_transfer_fees(game, &loan.loan_team_id),
+        settled_transfer_spend(game, &loan.loan_team_id),
     ) {
         return false;
     }
@@ -1308,7 +1305,7 @@ mod tests {
         let (player, club) = buy_option_candidate(1_000_000);
 
         assert!(!ai_should_exercise_loan_buy_option(
-            &player, &club, 0, 2_000, 30, 0
+            &player, &club, 0, 2_000, 30, 0, 0
         ));
     }
 
@@ -1319,13 +1316,13 @@ mod tests {
         let (player, mut club) = buy_option_candidate(1_000_000);
         club.finance = 100_000;
         assert!(!ai_should_exercise_loan_buy_option(
-            &player, &club, 900_000, 2_000, 30, 0
+            &player, &club, 900_000, 2_000, 30, 0, 0
         ));
 
         let (player, mut club) = buy_option_candidate(1_000_000);
         club.transfer_budget = 100_000;
         assert!(!ai_should_exercise_loan_buy_option(
-            &player, &club, 900_000, 2_000, 30, 0
+            &player, &club, 900_000, 2_000, 30, 0, 0
         ));
     }
 
@@ -1335,7 +1332,7 @@ mod tests {
         let (player, club) = buy_option_candidate(1_000_000);
 
         assert!(ai_should_exercise_loan_buy_option(
-            &player, &club, 900_000, 2_000, 30, 0
+            &player, &club, 900_000, 2_000, 30, 0, 0
         ));
     }
 
@@ -1791,7 +1788,7 @@ mod tests {
         let (player, club) = buy_option_candidate(1_000_000);
 
         assert!(ai_should_exercise_loan_buy_option(
-            &player, &club, 1_200_000, 1_000, 5, 0
+            &player, &club, 1_200_000, 1_000, 5, 0, 0
         ));
     }
 
@@ -1804,7 +1801,7 @@ mod tests {
         let (player, club) = buy_option_candidate(1_000_000);
 
         assert!(!ai_should_exercise_loan_buy_option(
-            &player, &club, 1_260_000, 1_000, 8, 0
+            &player, &club, 1_260_000, 1_000, 8, 0, 0
         ));
     }
 
@@ -1816,7 +1813,7 @@ mod tests {
         let (player, club) = buy_option_candidate(1_000_000);
 
         assert!(ai_should_exercise_loan_buy_option(
-            &player, &club, 1_200_000, 300, 8, 0
+            &player, &club, 1_200_000, 300, 8, 0, 0
         ));
     }
 

@@ -127,6 +127,7 @@ fn write_game_to_connection(
             gate_settled_from: game.gate_settled_from.clone(),
             last_season_rollover_on: game.last_season_rollover_on.clone(),
             days_since_last_job_offer: game.days_since_last_job_offer,
+            last_season_rollover_journal_len: game.last_season_rollover_journal_len,
             available_staff_market_last_activity_date: game
                 .available_staff_market_last_activity_date
                 .clone(),
@@ -394,6 +395,7 @@ impl GamePersistenceReader {
             legacy_tactics_imported: meta.legacy_tactics_imported,
             gate_settled_from: meta.gate_settled_from.clone(),
             last_season_rollover_on: meta.last_season_rollover_on.clone(),
+            last_season_rollover_journal_len: meta.last_season_rollover_journal_len,
             career_token: 0,
             revision: 0,
             clock,
@@ -594,6 +596,7 @@ mod tests {
             gate_settled_from: None,
             last_season_rollover_on: None,
             days_since_last_job_offer: None,
+            last_season_rollover_journal_len: None,
         }
     }
 
@@ -739,6 +742,66 @@ mod tests {
             assert_eq!(stored.as_deref(), rollover);
             assert_eq!(loaded.last_season_rollover_on.as_deref(), rollover);
         }
+    }
+
+    /// Given a career whose season ended with 7 journal posts, including a same-day fee before the cutoff
+    /// When a later same-day fee is posted, then the game is saved and loaded
+    /// Then the restored cursor still counts only the post-cutoff fee
+    #[test]
+    fn the_rollover_journal_len_is_written_to_the_save() {
+        use domain::finance::{CashJournal, CashKind, CashPost};
+        use ofm_core::transfers::{available_transfer_budget, settled_transfer_spend};
+
+        let db = GameDatabase::open_in_memory().unwrap();
+        let mut game = sample_game_with_clock(2027, 6);
+        game.teams[0].transfer_budget = 100_000;
+        let mut posts: Vec<CashPost> = (0..6)
+            .map(|i| CashPost {
+                id: format!("pre-{i}"),
+                club_id: "team-1".into(),
+                amount: 1,
+                kind: CashKind::Matchday,
+                date: "2027-05-01".into(),
+            })
+            .collect();
+        posts.push(CashPost {
+            id: "pre-cutoff-fee".into(),
+            club_id: "team-1".into(),
+            amount: -50_000,
+            kind: CashKind::TransferFeeOut,
+            date: "2027-05-25".into(),
+        });
+        game.cash_journal = CashJournal::from_vec(posts);
+        game.last_season_rollover_on = Some("2027-05-25".to_string());
+        game.last_season_rollover_journal_len = Some(7);
+        game.cash_journal.extend([CashPost {
+            id: "post-cutoff-fee".into(),
+            club_id: "team-1".into(),
+            amount: -80_000,
+            kind: CashKind::TransferFeeOut,
+            date: "2027-05-25".into(),
+        }]);
+        game.teams[0].finance = game.cash_journal.cash_for("team-1");
+
+        assert_eq!(settled_transfer_spend(&game, "team-1"), 80_000);
+        assert_eq!(available_transfer_budget(&game, &game.teams[0]), 20_000);
+
+        GamePersistenceWriter::write_game(&db, &game, "save-1", "Career").unwrap();
+
+        let stored: Option<u32> = db
+            .conn()
+            .query_row(
+                "SELECT last_season_rollover_journal_len FROM game_meta",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let loaded = GamePersistenceReader::read_game(&db).unwrap();
+
+        assert_eq!(stored, Some(7));
+        assert_eq!(loaded.last_season_rollover_journal_len, Some(7));
+        assert_eq!(settled_transfer_spend(&loaded, "team-1"), 80_000);
+        assert_eq!(available_transfer_budget(&loaded, &loaded.teams[0]), 20_000);
     }
 
     /// Given a career whose gates are settled from a date, with a gate paid for one fixture

@@ -1736,9 +1736,13 @@ fn a_buy_option_sale_credits_the_parent_club_the_same_as_a_permanent_sale() {
         "the fee should reach the parent club's balance"
     );
     assert_eq!(
-        parent.transfer_budget,
+        parent.transfer_budget, budget_before,
+        "the season limit stays put"
+    );
+    assert_eq!(
+        available_transfer_budget(&game, parent),
         budget_before + 1_200_000,
-        "and its spending room, as a permanent sale would"
+        "sale proceeds raise available room through negative net spend"
     );
 }
 
@@ -2157,7 +2161,8 @@ fn a_buy_option_can_be_exercised_with_exactly_the_fee_left_in_the_transfer_budge
         find_player(&game, "player-exact-budget").team_id.as_deref(),
         Some("team-1")
     );
-    assert_eq!(game.teams[0].transfer_budget, 0);
+    assert_eq!(game.teams[0].transfer_budget, 1_250_000);
+    assert_eq!(available_transfer_budget(&game, &game.teams[0]), 0);
 }
 
 /// Given the user has a player on loan at 40% of his 520,000 wage (about 208,000 a week on the

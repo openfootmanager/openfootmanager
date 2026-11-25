@@ -499,14 +499,14 @@ Club cash is an append-only journal (`post` / `post_all`). `Team.finance` is a c
 
 | Field | Description |
 |-------|-------------|
-| `finance` | Cached cash balance (can be negative) |
+| `finance` | Cached cash balance (can be negative). Cash moves only through the journal. |
 | `wage_budget` | Cap on committed weekly wages (player + staff, loan-split) |
-| `transfer_budget` | Board limit on transfer fees; agreed `PendingRegistration` fees sit against it until settlement |
+| `transfer_budget` | Board season limit for transfer fees. Settlement does not change this scalar. Available room is the limit minus reserved pending-registration fees minus net settled `TransferFeeOut`/`TransferFeeIn` this season (after `last_season_rollover_on`, or after `last_season_rollover_journal_len` once a season has ended in this build). Sale proceeds raise available room through negative net spend. End of season sets a new limit at 15% of cash for clubs in finished leagues. Clubs whose league is still playing keep their available room: settled spend is folded into the stored limit before the season cutoff advances. A fee posted on the rollover calendar day after that cutoff still counts toward the new season. |
 | `season_income` / `season_expenses` | Gross in/out caches maintained from journal posts |
 
 Stored `Player.wage` / `Staff.wage` are weekly euros. Monday deducts those amounts (loanees split by `wage_contribution_pct`). Hiring staff commits the wage against the board's 110% policy and posts nothing; payday is the cash event.
 
-`reallocate_board_envelopes` moves weekly wage permission against the transfer limit (`+Δ` weekly wage ⇔ `−52Δ` transfer) without posting cash. Agreed `PendingRegistration` fees still have to fit the new transfer limit. At season end the board refills the transfer limit to 15% of cash (the same share worldgen uses); wage permission is not refilled. Settlement still debits or credits the live transfer-budget scalar.
+`reallocate_board_envelopes` moves weekly wage permission against the transfer limit (`+Δ` weekly wage ⇔ `−52Δ` transfer) without posting cash. Agreed `PendingRegistration` fees still have to fit the new transfer limit. At season end the board refills the transfer limit to 15% of cash (the same share worldgen uses); wage permission is not refilled.
 
 Gate income is paid for each completed home fixture in any competition. Sponsorship and prize money also post through the journal. The Finances tab reads `get_finance_snapshot`.
 
@@ -521,7 +521,7 @@ The transfer system provides a market for buying, selling, and loaning players.
 Each player has:
 - `transfer_listed: bool` — Whether the player is available for transfer
 - `loan_listed: bool` — Whether the player is available for loan
-- `transfer_offers: Vec<TransferOffer>` — Pending offers
+- `transfer_offers: Vec<TransferOffer>` — Pending offers. An agreement stamps `wage_offered` with the buyer's standard wage so delayed registration uses the frozen wage. A stored 0 still means "use the standard terms on the registration day".
 
 ### Transfer Views (Frontend)
 

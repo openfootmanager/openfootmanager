@@ -23,6 +23,9 @@ pub struct Team {
 
     // Financial breakdown
     pub wage_budget: i64,
+    /// Board season limit for transfer fees. Settlement posts cash; it does not
+    /// debit this scalar. Available room is the limit minus reserved
+    /// pending-registration fees minus net settled transfer-fee spend this season.
     pub transfer_budget: i64,
     pub season_income: i64,
     pub season_expenses: i64,

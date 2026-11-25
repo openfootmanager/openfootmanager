@@ -5,6 +5,7 @@ use crate::player_knowledge::{
 };
 use crate::transfers::{
     can_afford_fee, has_pending_transfer_registration, player_has_active_or_pending_loan,
+    settled_transfer_spend,
 };
 use chrono::NaiveDate;
 use domain::age::age_on_or_unknown;
@@ -234,6 +235,7 @@ struct ListContext<'a> {
     today: NaiveDate,
     user_team: Option<&'a Team>,
     committed_transfer_fees: i64,
+    settled_transfer_spend: i64,
 }
 
 impl<'a> ListContext<'a> {
@@ -249,6 +251,8 @@ impl<'a> ListContext<'a> {
             committed_transfer_fees: user_team.map_or(0, |team| {
                 crate::transfers::committed_transfer_fees(game, &team.id)
             }),
+            settled_transfer_spend: user_team
+                .map_or(0, |team| settled_transfer_spend(game, &team.id)),
         }
     }
 
@@ -313,7 +317,12 @@ fn within_budget(player: &Player, context: &ListContext) -> bool {
     let loan_only = player.loan_listed && !player.transfer_listed;
     player.team_id.is_none()
         || loan_only
-        || can_afford_fee(team, player.market_value, context.committed_transfer_fees)
+        || can_afford_fee(
+            team,
+            player.market_value,
+            context.committed_transfer_fees,
+            context.settled_transfer_spend,
+        )
 }
 
 /// Every filter of the query except status, which is counted separately for the status chips.
