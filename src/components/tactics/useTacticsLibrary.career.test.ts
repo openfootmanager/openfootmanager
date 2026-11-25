@@ -36,6 +36,11 @@ const career = (managerId: string, careerToken: number) =>
     players: [],
     competitions: [],
     messages: [],
+    staff: [],
+    news: [],
+    league: null,
+    scouting_assignments: [],
+    board_objectives: [],
     manager: { id: managerId, team_id: null },
   }) as unknown as GameStateData;
 
