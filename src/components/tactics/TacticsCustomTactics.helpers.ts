@@ -98,6 +98,28 @@ function readStoredList(storage: StorageLike, key: string): TacticsLibraryEntry[
 }
 
 /** The library as the save holds it after an import, and whether nothing is left to retry. */
+/**
+ * The library a save's reply should show, once what the manager has done since that reply was asked
+ * for is laid over it. A reply is the whole list as the save had it when it answered, so it predates
+ * anything made, changed or deleted after: `pending` holds those, by tactic id, each an entry (made
+ * or changed) or `null` (deleted), in the order they were asked.
+ * - a tactic the reply lacks and `pending` holds is added at the front, the newest first;
+ * - one both hold shows `pending`'s version, where the reply has it;
+ * - one `pending` deletes is left out, whether or not the reply holds it.
+ * The reply's own order is kept for what it holds. Returns the same array when nothing is pending.
+ */
+export function layPendingChanges(
+  entries: TacticsLibraryEntry[],
+  pending: ReadonlyMap<string, TacticsLibraryEntry | null>,
+): TacticsLibraryEntry[] {
+  if (pending.size === 0) return entries;
+  const made = [...pending.values()].flatMap((entry) => (entry ? [entry] : []));
+  const added = made.filter((entry) => !entries.some((e) => e.id === entry.id)).reverse();
+  return [...added, ...entries.map((e) => pending.get(e.id) ?? e)].filter(
+    (e) => pending.get(e.id) !== null,
+  );
+}
+
 export interface LegacyImport {
   tactics: CustomTactic[];
   /** False when a save failed part way: the rest must be tried again, so it is not marked done. */

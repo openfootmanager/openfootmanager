@@ -1,11 +1,13 @@
 import type { PlayerData } from "../../store/gameStore";
 import { Dialog } from "../ui";
+import type { SwapBlockedReason } from "./swapBlockedReason";
 import TacticsPlayerFocusPanel, { TACTICS_INSPECTOR_TITLE_ID } from "./TacticsPlayerFocusPanel";
 
 interface TacticsCompareDialogProps {
   selectedPlayer: PlayerData;
   comparePlayer: PlayerData;
   canConfirmSwap: boolean;
+  swapBlockedReason?: SwapBlockedReason | null;
   onConfirmSwap: () => void;
   onClose: () => void;
 }
@@ -18,6 +20,7 @@ export default function TacticsCompareDialog({
   selectedPlayer,
   comparePlayer,
   canConfirmSwap,
+  swapBlockedReason = null,
   onConfirmSwap,
   onClose,
 }: TacticsCompareDialogProps) {
@@ -30,6 +33,7 @@ export default function TacticsCompareDialog({
     >
       <TacticsPlayerFocusPanel
         canConfirmSwap={canConfirmSwap}
+        swapBlockedReason={swapBlockedReason}
         comparePlayer={comparePlayer}
         onClose={onClose}
         onConfirmSwap={onConfirmSwap}

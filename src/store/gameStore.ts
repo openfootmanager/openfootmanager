@@ -152,7 +152,8 @@ export type {
 interface GameStore {
   hasActiveGame: boolean;
   /**
-   * Counts the careers this window has opened (a game started or a save loaded) and closed. Calls
+   * Counts the careers this window has opened (a game started or a save loaded, from a screen or
+   * installed from outside one: a snapshot of another career token) and closed. Calls
    * that act on "the active game" carry no career with them, so anything slow that was asked in
    * one career compares this before it shows its answer in the next.
    */
@@ -187,9 +188,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
     })),
   setGameState: (state) => {
     // An older snapshot (a slow refetch resolving after a newer game was shown) is dropped.
-    if (!isSnapshotNotOlder(get().gameState, state)) return;
+    const held = get().gameState;
+    if (!isSnapshotNotOlder(held, state)) return;
     const normalized = normalizeGameStateNationalities(state);
-    set({ gameState: normalized, sessionState: deriveSessionState(normalized), isDirty: true });
+    // A snapshot of another career than the one held (the backend hands out a new career token for
+    // every game it installs) is a new career, however it got here: a save loaded by the MCP tool
+    // reaches this store as a refetch, never through setGameActive. What was asked in the old career
+    // must not show its answer in this one.
+    const installsAnotherCareer =
+      held !== null && (state.career_token ?? 0) !== (held.career_token ?? 0);
+    set((current) => ({
+      gameState: normalized,
+      sessionState: deriveSessionState(normalized),
+      isDirty: true,
+      careerEpoch: installsAnotherCareer ? current.careerEpoch + 1 : current.careerEpoch,
+    }));
   },
   // Lightweight patch for inbox-only mutations that return just the message
   // slice (not the whole game). Patching messages here re-derives sessionState

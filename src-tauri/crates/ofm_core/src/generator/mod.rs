@@ -10,6 +10,7 @@ mod package_stack;
 mod package_warnings;
 pub mod scaffold;
 mod staff_bell;
+mod staff_wages;
 pub mod world_io;
 mod youth;
 
@@ -35,6 +36,8 @@ pub use scaffold::{
     EntityKind, entity_template, manifest_json, names_json, new_package_meta, scaffold_package,
     slugify,
 };
+pub use staff_wages::backfill_zero_staff_wages;
+pub(crate) use staff_wages::{UNATTACHED_STAFF_REPUTATION, generated_staff_weekly_wage};
 pub use world_io::*;
 pub(crate) use youth::generate_youth_intake_recruit;
 pub use youth::{generate_youth_academy_recruit, generate_youth_academy_recruit_with_nationality};
@@ -327,6 +330,7 @@ fn as_free_agent(mut player: Player) -> Player {
 fn normalize_generated_team(
     team: &mut Team,
     players: &mut [Player],
+    staff: &[Staff],
     opening_year: i32,
     authored_ids: &HashSet<String>,
 ) {
@@ -336,9 +340,13 @@ fn normalize_generated_team(
     // again after swapping generated players for authored ones, and a role
     // belongs to the squad that finished rather than the one that was built.
     crate::ai_roles::assign_squad_roles(team, players.iter());
+    restamp_opening_wage_envelopes(team, players, staff);
+}
 
-    let weekly_wage_bill: i64 = players.iter().map(|player| player.wage() as i64).sum();
-
+fn restamp_opening_wage_envelopes(team: &mut Team, players: &[Player], staff: &[Staff]) {
+    let player_wages: i64 = players.iter().map(|player| i64::from(player.wage())).sum();
+    let staff_wages: i64 = staff.iter().map(|member| i64::from(member.wage)).sum();
+    let weekly_wage_bill = player_wages + staff_wages;
     team.wage_budget = normalized_wage_budget(weekly_wage_bill, team.reputation);
     floor_opening_cash(team, weekly_wage_bill);
 }
@@ -398,6 +406,7 @@ fn generate_missing_team_staff(
                 opening_year,
                 &names_def,
                 rng,
+                team.reputation,
             ));
         }
     }
@@ -566,6 +575,7 @@ pub fn normalize_imported_world_for_career_start(world: &mut WorldData, opening_
     generate_missing_team_staff(world, opening_year, &mut rng);
     let _ =
         replenish_available_staff_market(&mut world.staff, &world.teams, opening_year, &mut rng);
+    let _ = staff_wages::price_zero_staff_wages_on(&mut world.staff, &world.teams);
     floor_imported_world_opening_cash(world);
 }
 
@@ -574,13 +584,19 @@ fn floor_imported_world_opening_cash(world: &mut WorldData) {
         .teams
         .iter()
         .map(|team| {
-            let weekly_wage_bill: i64 = world
+            let player_wages: i64 = world
                 .players
                 .iter()
                 .filter(|player| player.team_id.as_deref() == Some(team.id.as_str()))
                 .map(|player| i64::from(player.wage()))
                 .sum();
-            (team.id.clone(), weekly_wage_bill)
+            let staff_wages: i64 = world
+                .staff
+                .iter()
+                .filter(|member| member.team_id.as_deref() == Some(team.id.as_str()))
+                .map(|member| i64::from(member.wage))
+                .sum();
+            (team.id.clone(), player_wages + staff_wages)
         })
         .collect();
     for (team_id, weekly_wage_bill) in bills {
@@ -838,6 +854,7 @@ fn build_club(
             opening_year,
             names_def,
             rng,
+            team.reputation,
         ));
     }
 
@@ -870,6 +887,7 @@ fn build_club(
     normalize_generated_team(
         &mut team,
         &mut team_players,
+        &team_staff,
         opening_year as i32,
         &HashSet::new(),
     );
@@ -1043,7 +1061,13 @@ fn build_package_club(
     // Authored wages may differ from the players they replaced, so re-normalise
     // the opening wage budget to the final squad. The authored players are named so
     // the contract cap, which runs again here, leaves their deals alone.
-    normalize_generated_team(&mut team, &mut players, opening_year as i32, &authored_ids);
+    normalize_generated_team(
+        &mut team,
+        &mut players,
+        &staff,
+        opening_year as i32,
+        &authored_ids,
+    );
     (team, players, staff)
 }
 
@@ -1384,7 +1408,7 @@ pub fn build_world_data_from_package_with_rng(
             .get(tdef.id.as_str())
             .map(Vec::as_slice)
             .unwrap_or(NO_AUTHORED_STAFF);
-        let (team, team_players, mut team_staff) = build_package_club(
+        let (mut team, team_players, mut team_staff) = build_package_club(
             tdef,
             &reputations,
             authored,
@@ -1403,6 +1427,7 @@ pub fn build_world_data_from_package_with_rng(
                 opening_year,
                 &names_def,
                 &mut *rng,
+                team.reputation,
             );
             // Only the original auto-generated slots are replacement candidates;
             // already-placed authored staff (appended below) are never overwritten.
@@ -1419,6 +1444,7 @@ pub fn build_world_data_from_package_with_rng(
                 team_staff.push(authored_member);
             }
         }
+        restamp_opening_wage_envelopes(&mut team, &team_players, &team_staff);
         teams.push(team);
         players.extend(team_players);
         staff.extend(team_staff);
@@ -1438,6 +1464,7 @@ pub fn build_world_data_from_package_with_rng(
             opening_year,
             &names_def,
             &mut *rng,
+            UNATTACHED_STAFF_REPUTATION,
         ));
     }
 
@@ -2166,7 +2193,7 @@ mod tests {
             let names_def = default_names_definition();
             let country_codes = generation::nationality_distribution();
             let mut rng = StdRng::seed_from_u64(7);
-            let (mut team, mut players, _staff) = build_club(
+            let (mut team, mut players, staff) = build_club(
                 &tdef,
                 &reputation_scale_of(std::slice::from_ref(&tdef)),
                 country_codes,
@@ -2183,6 +2210,7 @@ mod tests {
             normalize_generated_team(
                 &mut team,
                 &mut players,
+                &staff,
                 opening_year as i32,
                 &HashSet::new(),
             );
@@ -2417,16 +2445,30 @@ mod tests {
     #[test]
     fn test_generate_world_normalizes_opening_financials() {
         for _ in 0..8 {
-            let (teams, players, _) = generate_world_with(
+            let (teams, players, staff) = generate_world_with(
                 &WorldGenConfig::compact(),
                 &definitions::DefinitionSources::embedded_only(),
             );
             for team in &teams {
-                let weekly_wages: i64 = players
+                let player_wages: i64 = players
                     .iter()
                     .filter(|player| player.team_id.as_deref() == Some(team.id.as_str()))
                     .map(|player| player.wage() as i64)
                     .sum();
+                let staff_wages: i64 = staff
+                    .iter()
+                    .filter(|member| member.team_id.as_deref() == Some(team.id.as_str()))
+                    .map(|member| i64::from(member.wage))
+                    .sum();
+                assert!(
+                    staff
+                        .iter()
+                        .filter(|member| member.team_id.as_deref() == Some(team.id.as_str()))
+                        .all(|member| member.wage != 0),
+                    "{} opened with unpaid club staff",
+                    team.name
+                );
+                let weekly_wages = player_wages + staff_wages;
                 let usage_percent = (weekly_wages * 100) / std::cmp::max(1, team.wage_budget);
 
                 assert!(
@@ -3244,6 +3286,12 @@ mod tests {
                 assert_eq!(count, 1, "{} should have exactly one {:?}", team.name, role);
             }
         }
+        assert!(
+            world
+                .staff
+                .iter()
+                .all(|staff_member| staff_member.wage != 0)
+        );
         assert_eq!(
             world
                 .staff
@@ -3268,9 +3316,19 @@ mod tests {
 
         normalize_imported_world_for_career_start(&mut world, TEST_OPENING_YEAR);
 
+        let staff_wages: i64 = world
+            .staff
+            .iter()
+            .filter(|member| member.team_id.as_deref() == Some("team-1"))
+            .map(|member| i64::from(member.wage))
+            .sum();
+        assert!(
+            staff_wages > 0,
+            "imported clubs receive paid staff before the runway floor"
+        );
         assert_eq!(
             world.teams[0].finance,
-            5_000 * crate::finances::MIN_OPENING_RUNWAY_WEEKS
+            (5_000 + staff_wages) * crate::finances::MIN_OPENING_RUNWAY_WEEKS
         );
     }
 
@@ -3359,6 +3417,12 @@ mod tests {
             game.available_staff_market_last_activity_date.as_deref(),
             Some("2026-08-01")
         );
+        assert!(
+            game.staff
+                .iter()
+                .filter(|staff_member| staff_member.team_id.is_none())
+                .all(|staff_member| staff_member.wage != 0)
+        );
     }
 
     #[test]
@@ -3379,6 +3443,127 @@ mod tests {
             game.available_staff_market_last_activity_date.as_deref(),
             Some("2026-08-01")
         );
+        assert!(
+            game.staff
+                .iter()
+                .filter(|staff_member| staff_member.team_id.is_none())
+                .all(|staff_member| staff_member.wage != 0)
+        );
+    }
+
+    /// Given an employed staff member still on wage 0 after the unit lock
+    /// When zeros are priced (the save loader calls this)
+    /// Then the closed formula fills the wage, unattached zeros are priced too,
+    /// and the wage cap covers the new bill.
+    #[test]
+    fn backfill_zero_staff_wages_fills_zeros_when_any_employed_member_is_unpaid() {
+        let mut employed = make_import_staff("coach", Some("team-1"), StaffRole::Coach);
+        employed.attributes.coaching = 70;
+        let mut unattached = make_import_staff("free", None, StaffRole::Scout);
+        unattached.attributes.judging_ability = 80;
+        unattached.attributes.judging_potential = 80;
+        let mut game = make_staff_market_game(vec![employed, unattached]);
+        game.teams[0].reputation = 500;
+        game.teams[0].wage_budget = 1_000;
+
+        assert!(backfill_zero_staff_wages(&mut game));
+        let coach = game.staff.iter().find(|staff| staff.id == "coach").unwrap();
+        let free = game.staff.iter().find(|staff| staff.id == "free").unwrap();
+        assert_eq!(coach.wage, 3_600);
+        assert_eq!(free.wage, 3_600);
+        assert_eq!(game.teams[0].wage_budget, 3_600);
+    }
+
+    /// Given employed staff already have wages and an unattached candidate is still unpaid
+    /// When the save is loaded
+    /// Then the candidate is priced and no club's wage cap is lifted.
+    #[test]
+    fn backfill_zero_staff_wages_prices_unattached_zeros_when_employed_staff_are_already_paid() {
+        let mut employed = make_import_staff("coach", Some("team-1"), StaffRole::Coach);
+        employed.wage = 3_600;
+        let mut unattached = make_import_staff("free", None, StaffRole::Scout);
+        unattached.attributes.judging_ability = 80;
+        unattached.attributes.judging_potential = 80;
+        let mut game = make_staff_market_game(vec![employed, unattached]);
+        game.teams[0].wage_budget = 1_000;
+
+        assert!(backfill_zero_staff_wages(&mut game));
+        assert_eq!(
+            game.staff
+                .iter()
+                .find(|staff| staff.id == "free")
+                .unwrap()
+                .wage,
+            3_600
+        );
+        assert_eq!(
+            game.staff
+                .iter()
+                .find(|staff| staff.id == "coach")
+                .unwrap()
+                .wage,
+            3_600
+        );
+        assert_eq!(game.teams[0].wage_budget, 1_000);
+    }
+
+    /// Given one club with unpaid staff and another already over its wage cap
+    /// When save-load prices the unpaid zeros
+    /// Then only the unpaid club's cap is lifted to the new bill.
+    #[test]
+    fn backfill_zero_staff_wages_lifts_the_cap_only_for_clubs_that_had_unpaid_staff() {
+        let mut unpaid = make_import_staff("coach-a", Some("team-1"), StaffRole::Coach);
+        unpaid.attributes.coaching = 70;
+        let mut paid = make_import_staff("coach-b", Some("team-2"), StaffRole::Coach);
+        paid.wage = 5_000;
+        let mut game = make_staff_market_game(vec![unpaid, paid]);
+        game.teams.push(make_import_team("team-2", "Beta FC"));
+        game.teams[0].reputation = 500;
+        game.teams[0].wage_budget = 1_000;
+        game.teams[1].wage_budget = 2_000;
+
+        assert!(backfill_zero_staff_wages(&mut game));
+
+        let alpha = game
+            .teams
+            .iter()
+            .find(|team| team.id == "team-1")
+            .expect("alpha club");
+        let beta = game
+            .teams
+            .iter()
+            .find(|team| team.id == "team-2")
+            .expect("beta club");
+        assert_eq!(alpha.wage_budget, 3_600);
+        assert_eq!(beta.wage_budget, 2_000);
+    }
+
+    /// Given an imported world whose employed staff already have wages and whose unattached
+    /// staff are still on wage 0
+    /// When the world is normalized for career start
+    /// Then unattached zeros are priced, and the wage cap is not lifted.
+    #[test]
+    fn normalize_imported_world_prices_unattached_zero_wages_when_employed_staff_are_already_paid()
+    {
+        let mut world = make_roster_baseline_world_without_staff();
+        let mut employed = make_import_staff("coach", Some("team-1"), StaffRole::Coach);
+        employed.wage = 3_600;
+        let mut unattached = make_import_staff("free", None, StaffRole::Scout);
+        unattached.attributes.judging_ability = 80;
+        unattached.attributes.judging_potential = 80;
+        world.staff = vec![employed, unattached];
+        world.teams[0].wage_budget = 1_000;
+
+        normalize_imported_world_for_career_start(&mut world, TEST_OPENING_YEAR);
+
+        let free = world
+            .staff
+            .iter()
+            .find(|staff| staff.id == "free")
+            .expect("unattached staff kept");
+        // Scout: 1000 + max(80, 80)×20 + unattached reputation 500×2
+        assert_eq!(free.wage, 3_600);
+        assert_eq!(world.teams[0].wage_budget, 1_000);
     }
 
     /// Three clubs (so the scout floor is six) and the unemployed scouts the market holds.

@@ -138,6 +138,22 @@ function fitLabelKey(fitTone: PitchFitTone): string | null {
 }
 
 /**
+ * The words for a token: the player's condition and, once the lineup can be graded, how he fits the
+ * slot. The one formatter for the token's hover and for the pitch's list for a screen reader (#330).
+ */
+export function pitchTokenSummary(
+  t: (key: string, options?: Record<string, unknown>) => string,
+  condition: number,
+  fitTone: PitchFitTone,
+): string {
+  const fitKey = fitLabelKey(fitTone);
+  const rounded = Math.round(condition);
+  return fitKey
+    ? t("squad.pitchTokenTooltip", { condition: rounded, fit: t(fitKey) })
+    : t("squad.pitchTokenConditionOnly", { condition: rounded });
+}
+
+/**
  * Presentational pitch token shared by the tactics board and the pre-match
  * screen: a circular avatar with a fit-tone ring, corner badges (position +
  * OVR), stacked role markers, an optional kit jersey, the player name, an
@@ -171,12 +187,9 @@ export function PitchToken({
     null,
   );
   const showTooltip = (hovered || focused) && !dismissed;
-  const fitKey = fitLabelKey(fitTone);
   // Each channel says one thing — ring: fit, bar: condition — and the words
   // carry both, for hover and for screen readers (#330).
-  const summary = fitKey
-    ? t("squad.pitchTokenTooltip", { condition: Math.round(condition), fit: t(fitKey) })
-    : t("squad.pitchTokenConditionOnly", { condition: Math.round(condition) });
+  const summary = pitchTokenSummary(t, condition, fitTone);
 
   useEffect(() => {
     if (!hovered && !focused) setDismissed(false);

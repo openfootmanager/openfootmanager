@@ -6,6 +6,7 @@ import type { GameStateData, PlayerData, TeamMatchRolesData } from "../../store/
 import SetPieceSelector from "../match/SetPieceSelector";
 import { Button } from "../ui";
 import {
+  MATCH_ROLE_LABEL_KEYS,
   buildUpdatedMatchRolesForAssignment,
   resolveEffectiveMatchRoles,
 } from "./TacticsRoles.helpers";
@@ -97,31 +98,37 @@ export default function TacticsSetPieces({
   }
 
   const takers = [
-    ["captain", "preMatch.captain", <Crown className="h-4 w-4" />, "captain", selectorPlayers],
+    [
+      "captain",
+      MATCH_ROLE_LABEL_KEYS.captain,
+      <Crown className="h-4 w-4" />,
+      "captain",
+      selectorPlayers,
+    ],
     [
       "vice_captain",
-      "tactics.viceCaptain",
+      MATCH_ROLE_LABEL_KEYS.vice_captain,
       <Award className="h-4 w-4" />,
       "vicecaptain",
       selectorPlayers,
     ],
     [
       "penalty_taker",
-      "preMatch.penaltyTaker",
+      MATCH_ROLE_LABEL_KEYS.penalty_taker,
       <CircleDot className="h-4 w-4" />,
       "penalty",
       outfielders,
     ],
     [
       "free_kick_taker",
-      "preMatch.freeKickTaker",
+      MATCH_ROLE_LABEL_KEYS.free_kick_taker,
       <Footprints className="h-4 w-4" />,
       "freekick",
       outfielders,
     ],
     [
       "corner_taker",
-      "preMatch.cornerTaker",
+      MATCH_ROLE_LABEL_KEYS.corner_taker,
       <CornerDownRight className="h-4 w-4" />,
       "corner",
       outfielders,

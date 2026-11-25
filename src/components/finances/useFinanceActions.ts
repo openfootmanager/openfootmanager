@@ -2,9 +2,10 @@ import { useRef, useState } from "react";
 
 import type { GameStateData } from "../../store/gameStore";
 
-import { formatExactMoney } from "../../lib/helpers";
+import { formatExactMoney, formatWeeklyWage } from "../../lib/helpers";
 
 import { invokeForCareer } from "../../services/careerInvoke";
+import { reallocateBoardEnvelopes } from "../../services/financeService";
 import { useTranslation } from "react-i18next";
 import { resolveBackendError } from "../../utils/backendI18n";
 import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
@@ -27,6 +28,10 @@ export function useFinanceActions(onGameUpdate?: (state: GameStateData) => void)
   // another action starts. The ref guards a second press before the state has rendered.
   const [answeringOfferId, setAnsweringOfferId] = useState<string | null>(null);
   const answeringOfferRef = useRef<string | null>(null);
+  // Envelope reallocation has the same shape: a shared `actionLoading` finally-null would re-enable
+  // the envelope controls when a facility upgrade (or any other finance action) finished first.
+  const [reallocationLoading, setReallocationLoading] = useState(false);
+  const reallocatingRef = useRef(false);
   // Why the backend refused the last answer to each sponsor offer, by the offer's message id: answering
   // one offer clears only its own entry.
   const [sponsorOfferErrors, setSponsorOfferErrors] = useState<Record<string, string>>({});
@@ -42,6 +47,10 @@ export function useFinanceActions(onGameUpdate?: (state: GameStateData) => void)
     text: string;
   } | null>(null);
   const [marketingCampaignFeedback, setMarketingCampaignFeedback] = useState<{
+    tone: "success" | "error";
+    text: string;
+  } | null>(null);
+  const [reallocationFeedback, setReallocationFeedback] = useState<{
     tone: "success" | "error";
     text: string;
   } | null>(null);
@@ -149,6 +158,33 @@ export function useFinanceActions(onGameUpdate?: (state: GameStateData) => void)
     }
   }
 
+  async function handleReallocateBoardEnvelopes(wageDeltaWeekly: number): Promise<void> {
+    if (reallocatingRef.current) return;
+    reallocatingRef.current = true;
+    setReallocationFeedback(null);
+    setReallocationLoading(true);
+    try {
+      const response = await reallocateBoardEnvelopes(wageDeltaWeekly);
+      onGameUpdate?.(response.game);
+      setReallocationFeedback({
+        tone: "success",
+        text: t("finances.reallocateSummary", {
+          wage: formatWeeklyWage(response.result.wage_budget),
+          transfer: formatExactMoney(response.result.transfer_budget),
+        }),
+      });
+    } catch (error) {
+      console.error("Failed to reallocate board envelopes:", error);
+      setReallocationFeedback({
+        tone: "error",
+        text: resolveBackendError(error),
+      });
+    } finally {
+      reallocatingRef.current = false;
+      setReallocationLoading(false);
+    }
+  }
+
   async function handleDelegateRenewals(playerIds: string[]): Promise<void> {
     if (playerIds.length === 0) {
       return;
@@ -208,17 +244,20 @@ export function useFinanceActions(onGameUpdate?: (state: GameStateData) => void)
   }
   return {
     actionLoading,
+    reallocationLoading,
     answeringOfferId,
     sponsorOfferErrors,
     facilityUpgradeError,
     boardSupportFeedback,
     sponsorPitchFeedback,
     marketingCampaignFeedback,
+    reallocationFeedback,
     delegatedRenewalsSummary,
     handleUpgradeFacility,
     handleRequestBoardSupport,
     handleRequestSponsorPitch,
     handleRequestMarketingCampaign,
+    handleReallocateBoardEnvelopes,
     handleDelegateRenewals,
     handleSponsorOption,
   };

@@ -978,6 +978,177 @@
       }
     },
     {
+      "name": "a transfer roundup with a deal whose fee is missing keeps the deals the backend wrote",
+      "kind": "article",
+      "input": {
+        "id": "roundup_deals_fee_0",
+        "headline_key": "be.news.transferRoundup.headline",
+        "body_key": "be.news.transferRoundup.body",
+        "source_key": "be.source.transferIntelligence",
+        "i18n_params": {
+          "weekStart": "2026-08-03",
+          "transferCount": "2",
+          "deals": "  J. Doe: North -> South (€12.5M)\n  A. Roe: East -> West (fee withheld)",
+          "dealsData": "[{\"player\":\"J. Doe\",\"fromTeam\":\"North\",\"toTeam\":\"South\",\"fee\":\"12500000\"},{\"player\":\"A. Roe\",\"fromTeam\":\"East\",\"toTeam\":\"West\"}]"
+        }
+      },
+      "expected": {
+        "headline": "Transfer Roundup — Week of 2026-08-03",
+        "body": "The transfer market stayed busy this week. 2 completed deal(s) stood out across the division.\n\n  J. Doe: North -> South (€12.5M)\n  A. Roe: East -> West (fee withheld)",
+        "source": "Transfer Intelligence"
+      }
+    },
+    {
+      "name": "a transfer roundup with a deal whose fee is null keeps the deals the backend wrote",
+      "kind": "article",
+      "input": {
+        "id": "roundup_deals_fee_1",
+        "headline_key": "be.news.transferRoundup.headline",
+        "body_key": "be.news.transferRoundup.body",
+        "source_key": "be.source.transferIntelligence",
+        "i18n_params": {
+          "weekStart": "2026-08-03",
+          "transferCount": "2",
+          "deals": "  J. Doe: North -> South (€12.5M)\n  A. Roe: East -> West (fee withheld)",
+          "dealsData": "[{\"player\":\"J. Doe\",\"fromTeam\":\"North\",\"toTeam\":\"South\",\"fee\":\"12500000\"},{\"player\":\"A. Roe\",\"fromTeam\":\"East\",\"toTeam\":\"West\",\"fee\":null}]"
+        }
+      },
+      "expected": {
+        "headline": "Transfer Roundup — Week of 2026-08-03",
+        "body": "The transfer market stayed busy this week. 2 completed deal(s) stood out across the division.\n\n  J. Doe: North -> South (€12.5M)\n  A. Roe: East -> West (fee withheld)",
+        "source": "Transfer Intelligence"
+      }
+    },
+    {
+      "name": "a transfer roundup with a deal whose fee is a number keeps the deals the backend wrote",
+      "kind": "article",
+      "input": {
+        "id": "roundup_deals_fee_2",
+        "headline_key": "be.news.transferRoundup.headline",
+        "body_key": "be.news.transferRoundup.body",
+        "source_key": "be.source.transferIntelligence",
+        "i18n_params": {
+          "weekStart": "2026-08-03",
+          "transferCount": "2",
+          "deals": "  J. Doe: North -> South (€12.5M)\n  A. Roe: East -> West (fee withheld)",
+          "dealsData": "[{\"player\":\"J. Doe\",\"fromTeam\":\"North\",\"toTeam\":\"South\",\"fee\":\"12500000\"},{\"player\":\"A. Roe\",\"fromTeam\":\"East\",\"toTeam\":\"West\",\"fee\":800000}]"
+        }
+      },
+      "expected": {
+        "headline": "Transfer Roundup — Week of 2026-08-03",
+        "body": "The transfer market stayed busy this week. 2 completed deal(s) stood out across the division.\n\n  J. Doe: North -> South (€12.5M)\n  A. Roe: East -> West (fee withheld)",
+        "source": "Transfer Intelligence"
+      }
+    },
+    {
+      "name": "a press conference with a quote whose param is a number keeps the quote the backend wrote",
+      "kind": "article",
+      "input": {
+        "id": "press_param_0",
+        "headline_key": "be.news.pressConference.headlineManagerQuote",
+        "body_key": "be.news.pressConference.bodySingle",
+        "source_key": "be.source.leagueWire",
+        "i18n_params": {
+          "team": "South",
+          "result": "0-3",
+          "quote": "A tough afternoon",
+          "quotesData": "[{\"key\":\"match.press.playerFocus.responses.praise.text\",\"fallback\":\"A tough afternoon\",\"params\":{\"playerName\":5}}]"
+        }
+      },
+      "expected": {
+        "headline": "South Manager: A tough afternoon",
+        "body": "The South manager spoke briefly after the 0-3 result.\n\n\"A tough afternoon\"",
+        "source": "League Wire"
+      }
+    },
+    {
+      "name": "a press conference with a quote whose param is null keeps the quote the backend wrote",
+      "kind": "article",
+      "input": {
+        "id": "press_param_1",
+        "headline_key": "be.news.pressConference.headlineManagerQuote",
+        "body_key": "be.news.pressConference.bodySingle",
+        "source_key": "be.source.leagueWire",
+        "i18n_params": {
+          "team": "South",
+          "result": "0-3",
+          "quote": "A tough afternoon",
+          "quotesData": "[{\"key\":\"match.press.playerFocus.responses.praise.text\",\"fallback\":\"A tough afternoon\",\"params\":{\"playerName\":null}}]"
+        }
+      },
+      "expected": {
+        "headline": "South Manager: A tough afternoon",
+        "body": "The South manager spoke briefly after the 0-3 result.\n\n\"A tough afternoon\"",
+        "source": "League Wire"
+      }
+    },
+    {
+      "name": "a press conference with a quote whose money param is an array keeps the quote the backend wrote",
+      "kind": "article",
+      "input": {
+        "id": "press_param_array",
+        "headline_key": "be.news.pressConference.headlineManagerQuote",
+        "body_key": "be.news.pressConference.bodySingle",
+        "source_key": "be.source.leagueWire",
+        "i18n_params": {
+          "team": "South",
+          "result": "0-3",
+          "quote": "A tough afternoon",
+          "quotesData": "[{\"key\":\"match.press.playerFocus.responses.praise.text\",\"fallback\":\"A tough afternoon\",\"params\":{\"playerName\":\"J. Doe\",\"fee\":[]}}]"
+        }
+      },
+      "expected": {
+        "headline": "South Manager: A tough afternoon",
+        "body": "The South manager spoke briefly after the 0-3 result.\n\n\"A tough afternoon\"",
+        "source": "League Wire"
+      }
+    },
+    {
+      "name": "a press conference with a quote whose params are a list holding a number keeps the quote the backend wrote",
+      "kind": "article",
+      "input": {
+        "id": "press_param_list",
+        "headline_key": "be.news.pressConference.headlineManagerQuote",
+        "body_key": "be.news.pressConference.bodySingle",
+        "source_key": "be.source.leagueWire",
+        "i18n_params": {
+          "team": "South",
+          "result": "0-3",
+          "quote": "A tough afternoon",
+          "quotesData": "[{\"key\":\"match.press.playerFocus.responses.praise.text\",\"fallback\":\"A tough afternoon\",\"params\":[5]}]"
+        }
+      },
+      "expected": {
+        "headline": "South Manager: A tough afternoon",
+        "body": "The South manager spoke briefly after the 0-3 result.\n\n\"A tough afternoon\"",
+        "source": "League Wire"
+      }
+    },
+    {
+      "name": "a preseason digest with an unbeaten club that is no name keeps the lines the backend wrote",
+      "kind": "article",
+      "input": {
+        "id": "preseason_5",
+        "headline_key": "be.news.preseasonDigest.headline",
+        "body_key": "be.news.preseasonDigest.bodyWithResults",
+        "source_key": "be.source.leagueChronicle",
+        "i18n_params": {
+          "weekStart": "2026-07-06",
+          "resultCount": "1",
+          "totalGoals": "4",
+          "results": "  North 3 - 1 South",
+          "resultsData": "[{\"home\":\"North\",\"home_goals\":3,\"away\":\"South\",\"away_goals\":1}]",
+          "unbeatenLine": "\n\nNorth and East remain unbeaten in preseason.",
+          "unbeatenTeamsData": "[\"North\",5]"
+        }
+      },
+      "expected": {
+        "headline": "Preseason Digest — Week of 2026-07-06",
+        "body": "The latest preseason digest is here. 1 friendly result(s) were played across the division this week, producing 4 goal(s).\n\nResults:\n  North 3 - 1 South\n\nNorth and East remain unbeaten in preseason.",
+        "source": "League Chronicle"
+      }
+    },
+    {
       "name": "a transfer roundup lays out its deals with the fee compact",
       "kind": "article",
       "input": {

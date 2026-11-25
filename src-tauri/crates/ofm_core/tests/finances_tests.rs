@@ -6,7 +6,9 @@ use domain::league::{
     Fixture, FixtureCompetition, FixtureStatus, League, MatchResult, StandingEntry,
 };
 use domain::manager::Manager;
-use domain::player::{ActiveLoan, Player, PlayerAttributes, Position};
+use domain::player::{
+    ActiveLoan, Player, PlayerAttributes, Position, TransferOffer, TransferOfferStatus,
+};
 use domain::staff::{Staff, StaffAttributes, StaffRole};
 use domain::team::{
     FinancialTransaction, FinancialTransactionKind, Sponsorship, SponsorshipBonusCriterion, Team,
@@ -382,6 +384,42 @@ fn request_board_support_rejects_second_support_package_in_same_season() {
     assert_eq!(error, "be.error.finance.boardSupportAlreadyUsed");
 }
 
+/// Given the user's league in competitions at season 2036, and a cup of season 1 in the mirror
+/// When the club takes a board-support package
+/// Then the ledger names season 2036, the user's season, not the cup the turn loop left in the slot
+#[test]
+fn board_support_is_keyed_on_the_users_league_season_not_the_mirror() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = -25_000;
+    let mut league = League::new(
+        "eng-d1".to_string(),
+        "First Division".to_string(),
+        2036,
+        &["team1".to_string(), "team2".to_string()],
+    );
+    league.participant_ids = vec!["team1".to_string(), "team2".to_string()];
+    let mut cup = League::new(
+        "cup".to_string(),
+        "Cup".to_string(),
+        1,
+        &["team1".to_string(), "team2".to_string()],
+    );
+    cup.kind = domain::league::CompetitionType::Cup;
+    game.league = Some(cup);
+    game.competitions = vec![league];
+
+    finances::request_board_support(&mut game, "team1").expect("support");
+
+    assert_eq!(
+        game.teams[0]
+            .financial_ledger
+            .last()
+            .expect("the package is on the ledger")
+            .description,
+        "Board support package for season 2036"
+    );
+}
+
 #[test]
 fn finance_action_previews_are_available_without_mutating_state() {
     let mut game = make_monday_game();
@@ -418,6 +456,47 @@ fn facility_upgrade_previews_report_cost_and_availability_for_a_healthy_club() {
     assert_eq!(training.next_cost, 500_000);
     assert!(training.can_afford);
     assert_eq!(training.block_reason, None);
+}
+
+/// Given reserved fees a one-step wage raise would uncover
+/// When finance previews are read
+/// Then raise-wage is refused with the reservations key, raise-transfer is allowed, and cash is untouched.
+#[test]
+fn envelope_previews_refuse_a_wage_raise_that_would_breach_reservations() {
+    let mut game = make_monday_game();
+    game.teams[0].transfer_budget = 300_000;
+    game.teams[0].wage_budget = 200_000;
+    game.players[0].transfer_offers.push(TransferOffer {
+        id: "offer-1".to_string(),
+        from_team_id: "team1".to_string(),
+        fee: 300_000,
+        wage_offered: 0,
+        last_manager_fee: None,
+        negotiation_round: 1,
+        suggested_counter_fee: None,
+        status: TransferOfferStatus::PendingRegistration,
+        date: "2025-06-16".to_string(),
+        registration_date: None,
+        closed_on: None,
+        registration_failure_reason: None,
+    });
+
+    let previews = finances::finance_action_previews(&game, "team1").expect("previews");
+
+    assert!(!previews.raise_wage.allowed);
+    assert_eq!(
+        previews.raise_wage.block_reason.as_deref(),
+        Some("be.error.finance.reallocationBreachesReservations")
+    );
+    assert_eq!(
+        previews.raise_wage.wage_delta_weekly,
+        finances::ENVELOPE_WAGE_STEP_WEEKLY
+    );
+    assert!(previews.raise_transfer.allowed);
+    assert_eq!(previews.raise_transfer.block_reason, None);
+    assert_eq!(game.teams[0].wage_budget, 200_000);
+    assert_eq!(game.teams[0].transfer_budget, 300_000);
+    assert_eq!(game.teams[0].finance, 5_000_000);
 }
 
 /// Given a club whose wage bill is over its budget and which cannot afford an upgrade

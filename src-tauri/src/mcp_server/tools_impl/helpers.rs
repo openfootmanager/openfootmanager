@@ -22,12 +22,14 @@ pub(crate) fn user_team(game: &ofm_core::game::Game) -> Result<&domain::team::Te
         .ok_or_else(|| "be.error.teamNotFound".to_string())
 }
 
-/// Get the league, returning a formatted error if none.
+/// Get the user's domestic league, returning a formatted error if none.
+///
+/// Reads `user_league()`, never the legacy `game.league` slot: the turn loop swaps cups through
+/// that field, so a table or fixture list taken from it is whoever was last played.
 pub(crate) fn require_league(
     game: &ofm_core::game::Game,
 ) -> Result<&domain::league::League, String> {
-    game.league
-        .as_ref()
+    game.user_league()
         .ok_or_else(|| "be.error.mcp.noLeagueYet".to_string())
 }
 

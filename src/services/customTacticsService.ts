@@ -62,6 +62,15 @@ export async function applyCustomTactic(id: string, careerToken: number): Promis
   return invokeForCareer<GameStateData>("apply_custom_tactic", { id }, careerToken);
 }
 
+/** Renames the tactic with `id`, keeping all it holds; returns the whole list. */
+export async function renameCustomTactic(
+  id: string,
+  name: string,
+  careerToken: number,
+): Promise<CustomTactic[]> {
+  return invokeForCareer<CustomTactic[]>("rename_custom_tactic", { id, name }, careerToken);
+}
+
 /** Removes the tactic with `id`; returns the list that is left. */
 export async function deleteCustomTactic(id: string, careerToken: number): Promise<CustomTactic[]> {
   return invokeForCareer<CustomTactic[]>("delete_custom_tactic", { id }, careerToken);

@@ -14,6 +14,7 @@ import { getFinanceSnapshot, type FinanceSnapshotData } from "../../services/fin
 import { useTranslation } from "react-i18next";
 
 import { type TaggedFinanceSnapshotData, buildFinanceSnapshotKey } from "./FinancesTab.helpers";
+import { FinanceEnvelopeCard } from "./FinanceEnvelopeCard";
 import FinancesFacilitiesCard from "./FinancesFacilitiesCard";
 import FinancesPayrollTable from "./FinancesPayrollTable";
 
@@ -80,15 +81,22 @@ function FinancesTabContent({
 
   // Slim session updates may omit the foreign player carrying a reservation, so a fresh
   // career state must refresh commitments even when its visible finance fields are unchanged.
+  // Envelope previews stay withheld until that refresh lands, and after it fails.
   useEffect(() => {
     let cancelled = false;
     const requestKey = financeSnapshotKey;
+    const requestedFor = gameState;
 
     setLoadFailure(null);
     void getFinanceSnapshot(myTeam.id)
       .then((financeData) => {
         if (!cancelled) {
-          setRemoteFinanceData({ key: requestKey, teamId: myTeam.id, data: financeData });
+          setRemoteFinanceData({
+            key: requestKey,
+            teamId: myTeam.id,
+            source: requestedFor,
+            data: financeData,
+          });
         }
       })
       .catch((error) => {
@@ -128,7 +136,9 @@ function FinancesTabContent({
         gameState={gameState}
         myTeam={myTeam}
         financeData={ownData.data}
-        previewsCurrent={ownData.key === financeSnapshotKey}
+        previewsCurrent={
+          ownData.key === financeSnapshotKey && ownData.source === gameState && !failedForThisState
+        }
         onGameUpdate={onGameUpdate}
         onSelectPlayer={onSelectPlayer}
       />
@@ -138,7 +148,7 @@ function FinancesTabContent({
 
 interface FinancesTabLoadedProps extends FinancesTabContentProps {
   financeData: FinanceSnapshotData;
-  /** Previews describe the club as it was when fetched; a stale set must not enable an action. */
+  /** Previews describe the club as it was when fetched; a stale or in-flight set must not enable an action. */
   previewsCurrent: boolean;
 }
 
@@ -163,6 +173,8 @@ function FinancesTabLoaded(props: FinancesTabLoadedProps) {
 
       {/* Wage summary */}
       <FinanceWageSummary state={view} />
+
+      <FinanceEnvelopeCard state={view} />
 
       <FinanceCashFlowCard state={view} />
 

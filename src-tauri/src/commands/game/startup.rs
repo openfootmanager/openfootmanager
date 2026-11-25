@@ -591,13 +591,14 @@ mod tests {
     #[test]
     fn preseason_league_setup_uses_selected_start_year_for_context() {
         let clock = GameClock::new(start_date_for_year(2032).unwrap());
-        let manager = domain::manager::Manager::new(
+        let mut manager = domain::manager::Manager::new(
             "mgr1".to_string(),
             "Alex".to_string(),
             "Manager".to_string(),
             "1980-01-01".to_string(),
             "England".to_string(),
         );
+        manager.hire("team1".to_string());
         let teams = vec![
             domain::team::Team::new(
                 "team1".to_string(),
