@@ -4,7 +4,9 @@ import {
   wireSnapshot,
   renderFinances,
   createGameState,
+  createPlayer,
 } from "./FinancesTab.testFixtures";
+import { buildFinanceSnapshotKey } from "./FinancesTab.helpers";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -260,6 +262,54 @@ describe("FinancesTab backend snapshot", () => {
     const stale = screen.getAllByRole("button", { name: "Upgrade" });
     expect(stale.every((button) => (button as HTMLButtonElement).disabled)).toBe(true);
     expect(screen.getByRole("button", { name: "finances.requestBoardSupport" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Raise wage budget" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Raise transfer budget" })).toBeDisabled();
+  });
+
+  /**
+   * Given envelope previews that currently allow a raise
+   * When a slim career update omits the foreign listing that now carries a reservation
+   * (the snapshot key is unchanged) and the refresh is in flight, then fails
+   * Then both envelope controls wait: a verdict from the previous fetch must not stay enabled.
+   */
+  it("withholds envelope previews while a same-key snapshot refresh is in flight or has failed", async () => {
+    let calls = 0;
+    let rejectRefresh: (error: Error) => void = () => {};
+    mockedInvoke.mockImplementation((command) => {
+      if (command !== "get_finance_snapshot") {
+        return Promise.reject(new Error(`Unexpected command: ${command}`));
+      }
+      calls += 1;
+      if (calls === 1) {
+        return Promise.resolve(wireSnapshot());
+      }
+      return new Promise((_, reject) => {
+        rejectRefresh = reject;
+      });
+    });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const ownPlayer = createPlayer();
+    const initial = createGameState({}, [], [ownPlayer]);
+    // Slim session payload: the newly agreed listing lives on a foreign player the
+    // career update omitted, so visible finance fields — and the snapshot key — match.
+    const slim = { ...initial };
+    expect(buildFinanceSnapshotKey(slim, slim.teams[0])).toBe(
+      buildFinanceSnapshotKey(initial, initial.teams[0]),
+    );
+
+    const { rerender } = render(<FinancesTab gameState={initial} />);
+    await screen.findByText("Facilities");
+    expect(screen.getByRole("button", { name: "Raise wage budget" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Raise transfer budget" })).toBeEnabled();
+
+    rerender(<FinancesTab gameState={slim} />);
+    await waitFor(() => expect(calls).toBe(2));
+    expect(screen.getByRole("button", { name: "Raise wage budget" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Raise transfer budget" })).toBeDisabled();
+
+    rejectRefresh(new Error("boom"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("finances.snapshotLoadFailed");
     expect(screen.getByRole("button", { name: "Raise wage budget" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Raise transfer budget" })).toBeDisabled();
   });

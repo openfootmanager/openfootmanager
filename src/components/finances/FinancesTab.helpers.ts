@@ -140,6 +140,8 @@ export interface DelegatedRenewalResponseData {
 export interface TaggedFinanceSnapshotData {
   key: string;
   teamId: string;
+  /** The career state this snapshot was fetched for. */
+  source: GameStateData;
   data: FinanceSnapshotData;
 }
 

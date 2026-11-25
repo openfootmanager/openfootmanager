@@ -250,10 +250,7 @@ export async function getFinanceSnapshot(teamId?: string): Promise<FinanceSnapsh
   };
 }
 
-export type EnvelopeReallocationResponseData = Omit<
-  EnvelopeReallocationCommandResponse,
-  "game"
-> & {
+export type EnvelopeReallocationResponseData = Omit<EnvelopeReallocationCommandResponse, "game"> & {
   game: GameStateData;
 };
 
