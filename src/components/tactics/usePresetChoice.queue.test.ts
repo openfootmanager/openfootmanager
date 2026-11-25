@@ -44,6 +44,13 @@ const career = (managerId: string, careerToken = 0) =>
     manager: { id: managerId, team_id: null },
   }) as unknown as GameStateData;
 
+/** The game a saved tactic's answer is: the user's team with the setup it now has. */
+const gameWithSetup = (marker: string, setup: { formation: string; playStyle: string }) => ({
+  marker,
+  teams: [{ id: "t1", formation: setup.formation, play_style: setup.playStyle }],
+  manager: { id: "mgr1", team_id: "t1" },
+});
+
 const wire = (id: string, name = id) => ({
   id,
   name,
@@ -74,8 +81,12 @@ function mountWithPresetChoice(callbacks: {
       onApplyPreset: callbacks.onApplyPreset,
       onKeepInstructions: callbacks.onKeepInstructions,
       onGameUpdate: (game) => {
-        const landed = game as unknown as { setup?: { formation: string; playStyle: string } };
-        if (landed.setup) setSetup(landed.setup);
+        // The team the answer reports, as the screen reads it.
+        const landed = game as unknown as {
+          teams?: Array<{ formation: string; play_style: string }>;
+        };
+        const team = landed.teams?.[0];
+        if (team) setSetup({ formation: team.formation, playStyle: team.play_style });
       },
       onWriteError: vi.fn(),
       onWriteSaved: vi.fn(),
@@ -155,10 +166,7 @@ describe("a preset chosen while saved tactics are being applied (#1447)", () => 
     await act(async () => replies[0].resolve({ marker: "after a" }));
     await waitFor(() => expect(callsTo("apply_custom_tactic")).toHaveLength(2));
     await act(async () =>
-      replies[1].resolve({
-        marker: "after b",
-        setup: { formation: "4-3-3", playStyle: "Attacking" },
-      }),
+      replies[1].resolve(gameWithSetup("after b", { formation: "4-3-3", playStyle: "Attacking" })),
     );
     await act(async () => {
       await Promise.all(asked);
@@ -242,6 +250,51 @@ describe("a preset chosen while saved tactics are being applied (#1447)", () => 
     act(() => result.current.externalChange({ formation: "3-5-2", playStyle: "Possession" }));
     await act(async () => {
       await result.current.presetChoice.choose(preset);
+    });
+
+    expect(result.current.presetChoice.pending?.id).toBe("preset:wing-play");
+  });
+
+  /**
+   * Given saved tactic A being applied (its answer held), a preset chosen behind it, and A saved
+   *       again while it waited, so the backend puts on the team the formation and style A holds NOW,
+   *       not the ones the screen had for A when it was asked
+   * When A answers
+   * Then the preset choice is asked about: the setup the team got is the one A's own apply left, not
+   *      an independent change, so the delivered setups are what the answer reports.
+   */
+  it("keeps a preset choice when the saved tactic's apply delivered a setup it was re-saved to", async () => {
+    const reply = deferred<unknown>();
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "list_custom_tactics") return [wire("a", "Away")];
+      if (command === "legacy_tactics_import_pending") return false;
+      if (command === "apply_custom_tactic") return reply.promise;
+      if (command === "get_tactics_blueprint_status") return { modified: true };
+      return { modified: false };
+    });
+    const { result } = mountWithPresetChoice({
+      onApplyPreset: vi.fn(async () => true),
+      onKeepInstructions: vi.fn(async () => true),
+    });
+    await waitFor(() => expect(customIds({ current: result.current.library })).toEqual(["a"]));
+    const entry = (id: string) => {
+      const found = result.current.library.tacticLibrary.find((e) => e.id === id);
+      if (!found) throw new Error(`${id} is in the library`);
+      return found;
+    };
+
+    const asked: Array<Promise<void>> = [];
+    act(() => {
+      asked.push(result.current.library.applyTacticSelection(entry("a")));
+      asked.push(result.current.presetChoice.choose(entry("preset:wing-play")));
+    });
+    await waitFor(() => expect(callsTo("apply_custom_tactic")).toHaveLength(1));
+    // The library entry says 4-4-2 / Balanced; the saved tactic now holds 3-5-2 / Possession.
+    await act(async () =>
+      reply.resolve(gameWithSetup("after a", { formation: "3-5-2", playStyle: "Possession" })),
+    );
+    await act(async () => {
+      await Promise.all(asked);
     });
 
     expect(result.current.presetChoice.pending?.id).toBe("preset:wing-play");

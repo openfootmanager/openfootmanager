@@ -129,6 +129,10 @@ describe("useTacticsLibrary delete and apply timing (#1438)", () => {
 
     act(() => result.current.handleDeleteTactic());
     await waitFor(() => expect(callsTo("delete_custom_tactic")).toHaveLength(1));
+    // While the save has not answered, the tactic is out of the picker but still the active one: the
+    // command bar must not already show the preset the setup matches.
+    expect(customIds(result)).toEqual([]);
+    expect(result.current.activeTactic.id).toBe(id);
     await act(async () => deleteReply.reject("be.error.customTactic.notFound"));
 
     await waitFor(() => expect(customIds(result)).toEqual([id]));
@@ -397,5 +401,93 @@ describe("useTacticsLibrary delete and apply timing (#1438)", () => {
 
     expect(callsTo("apply_custom_tactic")).toHaveLength(1);
     expect(onGameUpdate).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Given a saved tactic A being applied (its answer held), a preset B chosen behind it, and then a
+   *       manual formation edit
+   * When A answers
+   * Then the edit is sent last, after A and after B: the manager's later action is the one that stands,
+   *      not B overwriting it. Edits and applies go through one queue.
+   */
+  it("sends a manual edit asked after queued applies after them, so the last action wins", async () => {
+    const replies: Array<ReturnType<typeof deferred<unknown>>> = [];
+    const order: string[] = [];
+    emptyLibrary((command, args) => {
+      if (command === "list_custom_tactics") return [wire("a", "Away")];
+      if (command === "apply_custom_tactic") {
+        order.push(`apply ${(args as { id: string }).id}`);
+        const reply = deferred<unknown>();
+        replies.push(reply);
+        return reply.promise;
+      }
+      return undefined;
+    });
+    const onApplyPreset = vi.fn(async () => {
+      order.push("preset");
+      return true;
+    });
+    const { result } = mount(career("mgr1"), { onApplyPreset }, NO_PRESET_SETUP);
+    await waitFor(() => expect(customIds(result)).toEqual(["a"]));
+    const entry = (id: string) => {
+      const found = result.current.tacticLibrary.find((e) => e.id === id);
+      if (!found) throw new Error(`${id} is in the library`);
+      return found;
+    };
+
+    const asked: Array<Promise<unknown>> = [];
+    act(() => {
+      asked.push(result.current.applyTacticSelection(entry("a")));
+      asked.push(result.current.applyTacticSelection(entry("preset:wing-play")));
+      asked.push(
+        result.current.runAfterApplies(async () => {
+          order.push("edit");
+          return true;
+        }),
+      );
+    });
+    await waitFor(() => expect(order).toEqual(["apply a"]));
+    await act(async () => {});
+    expect(order).toEqual(["apply a"]);
+
+    await act(async () => replies[0].resolve({ marker: "after a" }));
+    await act(async () => {
+      await Promise.all(asked);
+    });
+
+    expect(order).toEqual(["apply a", "preset", "edit"]);
+  });
+
+  /**
+   * Given a manual edit asked in one career and another career opened before its turn comes
+   * When the turn comes
+   * Then the edit is not sent: it was the old career's.
+   */
+  it("sends no manual edit whose career has changed by its turn", async () => {
+    const reply = deferred<unknown>();
+    emptyLibrary((command) => {
+      if (command === "list_custom_tactics") return [wire("a", "Away")];
+      if (command === "apply_custom_tactic") return reply.promise;
+      return undefined;
+    });
+    const { result } = mount(career("mgr1"));
+    await waitFor(() => expect(customIds(result)).toEqual(["a"]));
+    const edit = vi.fn(async () => true);
+    const a = result.current.tacticLibrary.find((e) => e.id === "a");
+    if (!a) throw new Error("a is in the library");
+
+    let asked: Promise<unknown> = Promise.resolve();
+    act(() => {
+      void result.current.applyTacticSelection(a);
+      asked = result.current.runAfterApplies(edit);
+    });
+    await waitFor(() => expect(callsTo("apply_custom_tactic")).toHaveLength(1));
+    act(() => useGameStore.getState().setGameActive(true));
+    await act(async () => reply.resolve({ marker: "after a" }));
+    await act(async () => {
+      await asked;
+    });
+
+    expect(edit).not.toHaveBeenCalled();
   });
 });

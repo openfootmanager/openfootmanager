@@ -136,6 +136,27 @@ describe("useTacticsLibrary loading, characterized", () => {
 
 describe("useTacticsLibrary selection, characterized", () => {
   /**
+   * Given a team that starts on a setup no preset has, and two edits: its play style to one that
+   *       makes a preset match, then its formation to one no preset has
+   * When the second edit lands
+   * Then the preset the setup matched is still the active tactic, so the command bar sees the change
+   *      from it and offers Save: "no delete pending" is not a delete pending.
+   */
+  it("keeps the preset a setup matched as the active tactic when it then changes again", async () => {
+    emptySave();
+    const { result, rerender } = mountLibrary({ formation: "4-4-2", playStyle: "Defensive" });
+    await waitFor(() => expect(result.current.libraryLoaded).toBe(true));
+
+    rerender({ formation: "4-4-2", playStyle: "Balanced" });
+    await waitFor(() => expect(result.current.activeTactic.id).toBe("preset:balanced-control"));
+    rerender({ formation: "3-5-2", playStyle: "Balanced" });
+    await act(async () => {});
+
+    expect(result.current.activeTactic.id).toBe("preset:balanced-control");
+    expect(result.current.isCommandBarDirty).toBe(true);
+  });
+
+  /**
    * Given a setup that started as the Balanced Control preset (4-4-2, Balanced), a tactic made from
    *       it and then deleted, and the play style since changed to one no preset has at 4-4-2
    * When the manager looks at Reset
