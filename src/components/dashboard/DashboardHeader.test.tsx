@@ -417,15 +417,14 @@ describe("DashboardHeader search", () => {
    * Given results showing for a typed name
    * When the field loses the focus to nothing (the window, the bare page)
    * Then the results stay for 200 ms, so a click that is already on its way still lands, and then
-   *      close; and picking a result clears the query.
+   *      close.
    */
-  it("closes the results 200 ms after the focus leaves, and empties the box on a pick", () => {
+  it("closes the results 200 ms after the focus leaves", () => {
     vi.useFakeTimers();
     try {
-      const onSelectSearchPlayer = vi.fn();
-      renderHeader({ players: [createPlayer()], onSelectSearchPlayer });
+      renderHeader({ players: [createPlayer()] });
       typeInSearch("jo");
-      const field = screen.getByRole("textbox", { name: "common.search" }) as HTMLInputElement;
+      const field = screen.getByRole("textbox", { name: "common.search" });
       expect(screen.getByRole("button", { name: /John Striker/ })).toBeInTheDocument();
 
       fireEvent.blur(field, { relatedTarget: null });
@@ -436,12 +435,34 @@ describe("DashboardHeader search", () => {
 
       fireEvent.focus(field);
       expect(screen.getByRole("button", { name: /John Striker/ })).toBeInTheDocument();
-      fireEvent.click(screen.getByRole("button", { name: /John Striker/ }));
-      expect(onSelectSearchPlayer).toHaveBeenCalledWith("player-1");
-      expect(field.value).toBe("");
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  /**
+   * Given results showing for a typed name, a player and a team among them
+   * When the player picks one of them
+   * Then the pick is handed up, the box is emptied, and the results are gone.
+   */
+  it.each([
+    ["player", /John Striker/, "onSelectSearchPlayer", "player-1"],
+    ["team", /^Alpha FC/, "onSelectSearchTeam", "team-1"],
+  ] as const)("hands up a %s pick and empties the box", (_kind, name, handler, id) => {
+    const handlers = { onSelectSearchPlayer: vi.fn(), onSelectSearchTeam: vi.fn() };
+    renderHeader({
+      players: [createPlayer()],
+      teams: [createTeam({ name: "Alpha FC", short_name: "JOH" })],
+      ...handlers,
+    });
+    typeInSearch("jo");
+    const field = screen.getByRole("textbox", { name: "common.search" }) as HTMLInputElement;
+
+    fireEvent.click(screen.getByRole("button", { name }));
+
+    expect(handlers[handler]).toHaveBeenCalledWith(id);
+    expect(field.value).toBe("");
+    expect(screen.queryByRole("button", { name })).toBeNull();
   });
 });
 

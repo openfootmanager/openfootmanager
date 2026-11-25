@@ -1,4 +1,4 @@
-import { act, fireEvent, within } from "@testing-library/react";
+import { act, fireEvent, waitFor, within } from "@testing-library/react";
 import { clearMocks } from "@tauri-apps/api/mocks";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -19,7 +19,23 @@ vi.mock("../../components/tactics/TacticsTab", () => ({
   },
 }));
 
-const SETTLE_MS = 500;
+/**
+ * Waits until the tab has stopped rendering: the stand-in is there (the tab is lazy-loaded, so its
+ * first render comes late) and its count has not moved over a short wait.
+ */
+async function waitForTabToSettle(): Promise<void> {
+  let previous = -1;
+  await waitFor(async () => {
+    const current = tacticsRenders.count;
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(current).toBeGreaterThan(0);
+    expect(tacticsRenders.count).toBe(current);
+    expect(previous).toBe(current);
+    previous = current;
+  });
+}
 
 beforeAll(async () => {
   // jsdom has no matchMedia; ThemeProvider asks it for the system theme.
@@ -59,9 +75,7 @@ describe("the dashboard header's search", () => {
     await act(async () => {
       mounted = await mountPageHarness(root, "tactics", readStyleGuideOptions(""), "en");
     });
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
-    });
+    await waitForTabToSettle();
     const search = within(root).getByRole("textbox", { name: "Search" }) as HTMLInputElement;
     const rendersBefore = tacticsRenders.count;
     expect(rendersBefore).toBeGreaterThan(0);
