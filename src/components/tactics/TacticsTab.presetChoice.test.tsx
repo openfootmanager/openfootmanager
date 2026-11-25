@@ -289,8 +289,16 @@ describe("TacticsTab preset question", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS },
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
     });
-    expect(commandsCalled()).not.toContain("get_tactics_blueprint_status");
+    // (The screen asks the backend about its own dials too; the lookup is the one that names a style.)
+    const askedAboutAPreset = () =>
+      mockedInvoke.mock.calls.some(
+        ([command, args]) =>
+          command === "get_tactics_blueprint_status" &&
+          Boolean((args as { playStyle?: string } | undefined)?.playStyle),
+      );
+    expect(askedAboutAPreset()).toBe(false);
     await act(async () => release());
+    await waitFor(() => expect(askedAboutAPreset()).toBe(true));
 
     await waitFor(() => expect(commandsCalled()).toContain("apply_tactic_preset"));
     expect(appliedHighPress()).toBe(true);
