@@ -508,22 +508,24 @@ impl MarketSweep {
                 candidate.owner_team_id.clone(),
                 calc_wages(game, &candidate.owner_team_id),
             );
-            let fee = i64::try_from(candidate.fee).unwrap_or(i64::MAX);
-            let buyer_spent = self
-                .spent_by_club
-                .get(buyer_id)
-                .copied()
-                .unwrap_or(0)
-                .saturating_add(fee);
-            let seller_spent = self
-                .spent_by_club
-                .get(&candidate.owner_team_id)
-                .copied()
-                .unwrap_or(0)
-                .saturating_sub(fee);
-            self.spent_by_club.insert(buyer_id.to_string(), buyer_spent);
-            self.spent_by_club
-                .insert(candidate.owner_team_id.clone(), seller_spent);
+            if this_seasons_spend_includes_date(game, &self.today) {
+                let fee = i64::try_from(candidate.fee).unwrap_or(i64::MAX);
+                let buyer_spent = self
+                    .spent_by_club
+                    .get(buyer_id)
+                    .copied()
+                    .unwrap_or(0)
+                    .saturating_add(fee);
+                let seller_spent = self
+                    .spent_by_club
+                    .get(&candidate.owner_team_id)
+                    .copied()
+                    .unwrap_or(0)
+                    .saturating_sub(fee);
+                self.spent_by_club.insert(buyer_id.to_string(), buyer_spent);
+                self.spent_by_club
+                    .insert(candidate.owner_team_id.clone(), seller_spent);
+            }
         }
     }
     fn visit_buyer(&mut self, game: &mut Game, buyer_id: &str) {

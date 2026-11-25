@@ -24,7 +24,10 @@ use uuid::Uuid;
 
 mod affordability;
 mod bids;
-use affordability::{committed_transfer_fees_by_club, settled_transfer_spend_by_club};
+use affordability::{
+    committed_transfer_fees_by_club, settled_transfer_spend_by_club,
+    this_seasons_spend_includes_date,
+};
 mod consts;
 mod execution;
 mod lifecycle;

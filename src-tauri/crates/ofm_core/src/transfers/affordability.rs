@@ -113,6 +113,19 @@ fn settled_transfer_spend_in<'a>(
         .fold(0i64, |spent, (_, post)| spent.saturating_sub(post.amount))
 }
 
+/// Whether a transfer-fee post dated `date` belongs to this season's spend.
+/// Matches [`settled_transfer_spend`]: with a journal cursor, new posts count even on
+/// the rollover calendar day; without one, posts on that day stay in the old season.
+pub(super) fn this_seasons_spend_includes_date(game: &Game, date: &str) -> bool {
+    match game.last_season_rollover_journal_len {
+        Some(_) => true,
+        None => game
+            .last_season_rollover_on
+            .as_deref()
+            .is_none_or(|day| date > day),
+    }
+}
+
 /// Net transfer-fee spend this season for every club, from one walk of the journal.
 /// The market sweep reads this once and updates it after each completed deal.
 pub(super) fn settled_transfer_spend_by_club(
@@ -362,6 +375,28 @@ mod tests {
             Err(FeeBlock::TransferBudgetCommitted)
         );
         assert_eq!(fee_block(&club(10_000, 1_000), 300, 400, 300), Ok(()));
+    }
+
+    /// Given a backfilled rollover date equal to today and no journal cursor
+    /// When the sweep asks whether today's settlement counts
+    /// Then it does not: the persisted lookup excludes posts on that day
+    #[test]
+    fn todays_spend_is_excluded_on_a_backfilled_rollover_day_without_a_cursor() {
+        let mut game = game_with_remaining(0, vec![]);
+        game.last_season_rollover_on = Some("2026-08-01".into());
+        game.last_season_rollover_journal_len = None;
+        assert!(!this_seasons_spend_includes_date(&game, "2026-08-01"));
+    }
+
+    /// Given a journal cursor after a rollover that did not advance the clock
+    /// When the sweep asks whether today's settlement counts
+    /// Then it does: posts after the cursor belong to the new season
+    #[test]
+    fn todays_spend_counts_when_the_rollover_cursor_is_set() {
+        let mut game = game_with_remaining(0, vec![]);
+        game.last_season_rollover_on = Some("2026-08-01".into());
+        game.last_season_rollover_journal_len = Some(0);
+        assert!(this_seasons_spend_includes_date(&game, "2026-08-01"));
     }
 
     /// Given fees for two clubs in one journal
