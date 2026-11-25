@@ -179,10 +179,10 @@ describe("useTacticsLibrary selection, characterized", () => {
       }
       if (command === "delete_custom_tactic") {
         const { id } = args as { id: string };
-        held.splice(
-          held.findIndex((entry) => entry.id === id),
-          1,
-        );
+        const at = held.findIndex((entry) => entry.id === id);
+        // As the real save does: a tactic it does not hold is refused, not "the last one" removed.
+        if (at === -1) throw "be.error.customTactic.notFound";
+        held.splice(at, 1);
         return structuredClone(held);
       }
       return { modified: false };
