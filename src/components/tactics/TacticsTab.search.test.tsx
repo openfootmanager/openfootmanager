@@ -36,8 +36,19 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
 const TACTICS_TAB_CASE_TIMEOUT_MS = 20_000;
 
-/** More commits than typing ten characters can explain: a render loop's footprint. */
+/**
+ * More commits than typing ten characters can explain: a render loop's footprint. A loop does not
+ * fail a test by itself (the run just hangs), so the Profiler below throws past this many commits.
+ */
 const RENDER_BUDGET = 400;
+
+/** Counts a tree's commits, and throws once there are more than RENDER_BUDGET: a loop fails fast. */
+function countCommits(counter: { commits: number }) {
+  return () => {
+    counter.commits += 1;
+    if (counter.commits > RENDER_BUDGET) throw new Error("render loop: too many commits");
+  };
+}
 
 /** A stand-in for the dashboard: a header search whose every keystroke re-renders the tab under it. */
 function DashboardWithHeaderSearch({ onCommit }: { onCommit: () => void }) {
@@ -100,9 +111,9 @@ describe("typing in a search on the Tactics screen", {
    * Then the screen is still there, nothing was logged as an error, and the list shows what matches
    */
   it("keeps the screen when typing in the tactic picker's search", async () => {
-    let commits = 0;
+    const counter = { commits: 0 };
     render(
-      <Profiler id="tab" onRender={() => (commits += 1)}>
+      <Profiler id="tab" onRender={countCommits(counter)}>
         <ControlledTacticsTab />
       </Profiler>,
     );
@@ -116,7 +127,7 @@ describe("typing in a search on the Tactics screen", {
     await waitFor(() => expect(screen.queryByRole("option")).toBeNull());
     expect(screen.getByRole("button", { name: "Choose tactic" })).toBeInTheDocument();
     expect(consoleError).not.toHaveBeenCalled();
-    expect(commits).toBeLessThan(RENDER_BUDGET);
+    expect(counter.commits).toBeLessThan(RENDER_BUDGET);
   });
 
   /**
@@ -125,16 +136,16 @@ describe("typing in a search on the Tactics screen", {
    * Then the screen is still there, nothing was logged as an error, and it did not render in a loop
    */
   it("keeps the screen when typing in the dashboard header's search", async () => {
-    let commits = 0;
-    render(<DashboardWithHeaderSearch onCommit={() => (commits += 1)} />);
+    const counter = { commits: 0 };
+    render(<DashboardWithHeaderSearch onCommit={countCommits(counter)} />);
     await screen.findByRole("button", { name: "Choose tactic" });
-    const before = commits;
+    const before = counter.commits;
 
     typeInto(screen.getByRole("textbox", { name: "Global search" }), "player");
     await waitFor(() => expect(mockedInvoke).toHaveBeenCalled());
 
     expect(screen.getByRole("button", { name: "Choose tactic" })).toBeInTheDocument();
     expect(consoleError).not.toHaveBeenCalled();
-    expect(commits - before).toBeLessThan(RENDER_BUDGET);
+    expect(counter.commits - before).toBeLessThan(RENDER_BUDGET);
   });
 });
