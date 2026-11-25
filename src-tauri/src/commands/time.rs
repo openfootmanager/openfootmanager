@@ -138,11 +138,8 @@ pub fn skip_to_match_day_internal(
     career: Career,
 ) -> Result<serde_json::Value, String> {
     let _operation = crate::application::live_session::idle_operation(state)?;
-    info!("[cmd] skip_to_match_day");
-    // Precondition: manager must be employed at entry — guarantees that any later
-    // `team_id.is_none()` inside the loop is a real firing transition, not a stale state.
-    // Clock date before any processing — every match dated on/after this was
-    // played during the skip, which is what the results recap shows.
+    // Require employment at entry so a later missing team means a sacking.
+    // The starting date bounds the skip recap.
     let (user_team_id, start_date) = state
         .get_game(|g| {
             (
@@ -157,93 +154,12 @@ pub fn skip_to_match_day_internal(
         start_date, user_team_id
     );
 
-    // One day per update_game call: each day is processed and persisted
-    // atomically under the game lock, so concurrent GUI/MCP writes between
-    // days are seen by the next iteration instead of being clobbered by a
-    // single stale whole-loop clone — while never holding the lock for the
-    // entire (up to 60-day) skip.
-    enum Step {
-        /// Stop before processing: it's the user's match day.
-        MatchDay,
-        /// The skip ends here with this response (fired / blocked).
-        Terminal(serde_json::Value),
-        /// Quiet day processed; keep skipping.
-        Advanced,
-    }
-
-    let mut days_skipped = 0u32;
-    loop {
-        if days_skipped >= 60 {
-            break;
-        }
-
-        let mut captures = Vec::new();
-        let step = state.update_game_for(career, |game| {
-            let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-
-            // Stop on the user's match day so it can be played interactively
-            // rather than auto-simulated. Detect it across the user's
-            // competitions (the source of truth) — not the legacy `league`
-            // mirror, which misses cups.
-            if game.user_has_scheduled_match_on(&today) {
-                info!(
-                    "[cmd] skip_to_match_day: found match_day={}, days_skipped={}",
-                    today, days_skipped
-                );
-                return Step::MatchDay;
-            }
-
-            ofm_core::turn::process_day_with_capture(game, &mut |capture| {
-                captures.push(capture);
-            });
-
-            // Detect a firing that happened *during* this skip. Because the
-            // function errors out above when the manager starts unemployed,
-            // seeing `team_id.is_none()` here can only mean a real
-            // employed → unemployed transition.
-            if game.manager.team_id.is_none() {
-                info!(
-                    "[cmd] skip_to_match_day: manager fired after {} days",
-                    days_skipped + 1
-                );
-                let results = collect_advance_results(game, &start_date);
-                return Step::Terminal(serde_json::json!({
-                    "action": "fired",
-                    "game": game.clone(),
-                    "days_skipped": days_skipped + 1,
-                    "results": results
-                }));
-            }
-
-            // After processing, check if blocking actions arose
-            let blockers = stopping_blockers(game);
-            if !blockers.is_empty() {
-                info!(
-                    "[cmd] skip_to_match_day: blocked_after_days={}, date={}, blocker_count={}",
-                    days_skipped + 1,
-                    game.clock.current_date.format("%Y-%m-%d"),
-                    blockers.len()
-                );
-                let results = collect_advance_results(game, &start_date);
-                return Step::Terminal(serde_json::json!({
-                    "action": "blocked",
-                    "game": game.clone(),
-                    "blockers": blockers,
-                    "days_skipped": days_skipped + 1,
-                    "results": results
-                }));
-            }
-
-            Step::Advanced
-        })?;
-        for capture in captures {
-            state.append_stats_state(capture);
-        }
-
-        match step {
-            Step::MatchDay => break,
-            Step::Terminal(response) => return Ok(response),
-            Step::Advanced => days_skipped += 1,
+    let mut days_skipped = 0;
+    for day in 0..60 {
+        match skip_match_day_step(state, career, &start_date, day)? {
+            MatchDaySkipStep::MatchDay => break,
+            MatchDaySkipStep::Terminal(response) => return Ok(response),
+            MatchDaySkipStep::Advanced => days_skipped = day + 1,
         }
     }
 
@@ -265,6 +181,76 @@ pub fn skip_to_match_day_internal(
         "days_skipped": days_skipped,
         "results": results
     }))
+}
+
+enum MatchDaySkipStep {
+    MatchDay,
+    Terminal(serde_json::Value),
+    Advanced,
+}
+
+/// Process one day under the game lock so each iteration sees intervening writes.
+fn skip_match_day_step(
+    state: &StateManager,
+    career: Career,
+    start_date: &str,
+    days_skipped: u32,
+) -> Result<MatchDaySkipStep, String> {
+    let blocked = |game: &Game, days_skipped| {
+        let blockers = stopping_blockers(game);
+        if blockers.is_empty() {
+            return None;
+        }
+        info!(
+            "[cmd] skip_to_match_day: blocked_after_days={}, date={}, blocker_count={}",
+            days_skipped,
+            game.clock.current_date.format("%Y-%m-%d"),
+            blockers.len()
+        );
+        Some(MatchDaySkipStep::Terminal(serde_json::json!({
+            "action": "blocked",
+            "game": game,
+            "blockers": blockers,
+            "days_skipped": days_skipped,
+            "results": collect_advance_results(game, start_date)
+        })))
+    };
+    let mut captures = Vec::new();
+    let step = state.update_game_for(career, |game| {
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        if game.user_has_scheduled_match_on(&today) {
+            info!("[cmd] skip_to_match_day: found match_day={today}, days_skipped={days_skipped}");
+            return MatchDaySkipStep::MatchDay;
+        }
+
+        // The player can confirm a warning before the first day. Later days
+        // must respect blockers from writes that land between game locks.
+        if days_skipped > 0 {
+            if let Some(step) = blocked(game, days_skipped) {
+                return step;
+            }
+        }
+
+        ofm_core::turn::process_day_with_capture(game, &mut |capture| {
+            captures.push(capture);
+        });
+
+        let advanced = days_skipped + 1;
+        if game.manager.team_id.is_none() {
+            info!("[cmd] skip_to_match_day: manager fired after {advanced} days");
+            return MatchDaySkipStep::Terminal(serde_json::json!({
+                "action": "fired",
+                "game": game,
+                "days_skipped": advanced,
+                "results": collect_advance_results(game, start_date)
+            }));
+        }
+        blocked(game, advanced).unwrap_or(MatchDaySkipStep::Advanced)
+    })?;
+    for capture in captures {
+        state.append_stats_state(capture);
+    }
+    Ok(step)
 }
 
 /// Whether the skip ended on the user's match day, rather than out of days (the 60-day limit). Read
@@ -906,24 +892,12 @@ mod tests {
     }
 
     fn mark_player_let_expire(game: &mut Game, player_id: &str) {
-        let player = game
-            .players
+        game.players
             .iter_mut()
             .find(|player| player.id == player_id)
-            .unwrap();
-        player.stage_contract_end(Some("2025-08-01".to_string()));
-        player.morale_core.renewal_state = Some(ContractRenewalState {
-            status: RenewalSessionStatus::Blocked,
-            manager_blocked_until: None,
-            last_attempt_date: Some("2025-06-15".to_string()),
-            last_assistant_attempt_date: None,
-            last_outcome: None,
-            conversation_round: 0,
-            exit_intent: Some(ContractExitIntent::LetExpire {
-                set_on: "2025-06-15".to_string(),
-                reason: Some("test".to_string()),
-            }),
-        });
+            .unwrap()
+            .stage_contract_end(Some("2025-08-01".into()));
+        ofm_core::contracts::set_contract_exit_intent(game, player_id, None).unwrap();
     }
 
     #[test]
@@ -1125,16 +1099,17 @@ mod tests {
         );
     }
 
-    /// Given a saved career on Sunday 15 June 2025 with Auto-Save on
-    /// When the screen's skip to the next match day (skip_to_match_day) moves the game on
-    /// Then the save on disk reads the day the skip stopped on: any later day is a new week, and
-    ///      this command saves it through its own call, not the other two commands' (#1181 review).
+    /// Given an auto-saving career with its next fixture on Monday
+    /// When the player skips from Sunday to match day
+    /// Then the skip counts one day and saves the career at Monday.
     #[test]
     fn the_skip_to_match_day_saves_the_week_it_crosses() {
         use crate::commands::wrapper_testkit::WrapperApp;
-        let app = WrapperApp::new(make_game(11), true);
+        let (state, sunday) = state_with_a_cup_tie_in(1);
+        let monday = sunday + chrono::Duration::days(1);
+        let app = WrapperApp::new(state.get_game(Clone::clone).unwrap(), true);
 
-        tauri::async_runtime::block_on(super::skip_to_match_day(
+        let outcome = tauri::async_runtime::block_on(super::skip_to_match_day(
             app.state(),
             app.saves(),
             app.handle(),
@@ -1142,12 +1117,26 @@ mod tests {
         ))
         .expect("the skip runs");
 
-        let stopped_on = app
-            .state()
-            .get_game(|game| game.clock.current_date.date_naive())
-            .unwrap();
-        assert!(stopped_on > chrono::NaiveDate::from_ymd_opt(2025, 6, 15).unwrap());
-        assert_eq!(app.saved_game().clock.current_date.date_naive(), stopped_on);
+        assert_eq!(outcome["action"], "arrived");
+        assert_eq!(outcome["days_skipped"], 1);
+        assert_eq!(app.saved_game().clock.current_date, monday);
+    }
+
+    /// Given a healthy team with no fixtures
+    /// When the player skips to match day
+    /// Then the game advances exactly sixty days and reports no match reached.
+    #[test]
+    fn the_skip_caps_at_sixty_days_without_a_match() {
+        let mut game = make_game(30);
+        game.teams[0].starting_xi_ids.clear();
+        let end = game.clock.current_date + chrono::Duration::days(60);
+        let state = StateManager::new();
+        state.set_game(game);
+        let outcome =
+            super::skip_to_match_day_internal(&state, ofm_core::state::Career::Active).unwrap();
+        assert_eq!(outcome["days_skipped"], 60);
+        assert_eq!(outcome["reached_match_day"], false);
+        assert_eq!(state.get_game(|game| game.clock.current_date), Some(end));
     }
 
     /// Given a game with nobody injured, and one where two starters are injured
@@ -1158,25 +1147,6 @@ mod tests {
     #[test]
     fn skipping_and_continuing_stop_on_a_blocker_and_only_then() {
         use ofm_core::state::Career;
-        let blocker_ids = |outcome: &Value| -> Vec<String> {
-            outcome["blockers"]
-                .as_array()
-                .map(|blockers| {
-                    blockers
-                        .iter()
-                        .map(|blocker| blocker["id"].as_str().unwrap().to_string())
-                        .collect()
-                })
-                .unwrap_or_default()
-        };
-        let blocker_severities = |outcome: &Value| -> Vec<String> {
-            outcome["blockers"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .map(|blocker| blocker["severity"].as_str().unwrap().to_string())
-                .collect()
-        };
         let blocked_game = || {
             let mut game = make_game(11);
             for player_id in ["p2", "p5"] {
@@ -1202,7 +1172,7 @@ mod tests {
             assert_eq!(blocked["action"], "blocked", "{blocked}");
             assert_eq!(blocked["days_skipped"], 1, "{blocked}");
             assert!(
-                blocker_ids(&blocked).contains(&"injured_xi".to_string()),
+                blocker_by_id(blocked["blockers"].as_array().unwrap(), "injured_xi").is_some(),
                 "{blocked}"
             );
 
@@ -1210,10 +1180,52 @@ mod tests {
             // stops it, it is never the informational mail.
             let healthy = run(make_game(11), advance);
             assert!(
-                blocker_severities(&healthy).iter().all(|s| s != "info"),
+                healthy["blockers"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .all(|blocker| blocker["severity"] != "info"),
                 "an informational blocker stopped time: {healthy}"
             );
         }
+    }
+
+    /// Given a skip in progress
+    /// When an intervening contract decision makes the next day's squad unsafe
+    /// Then the skip reports that blocker before advancing another day.
+    #[test]
+    fn skip_checks_a_contract_blocker_added_between_days() {
+        use ofm_core::state::Career;
+
+        let mut game = make_game(11);
+        game.players[10].stage_contract_end(Some("2025-08-01".into()));
+        let start = game.clock.current_date;
+        let start_date = start.format("%Y-%m-%d").to_string();
+        let state = StateManager::new();
+        state.set_game(game);
+        let career = Career::Active;
+        assert!(matches!(
+            super::skip_match_day_step(&state, career, &start_date, 0).unwrap(),
+            super::MatchDaySkipStep::Advanced
+        ));
+        crate::commands::contracts::set_contract_exit_intent_internal(&state, career, "p11", None)
+            .unwrap();
+        let super::MatchDaySkipStep::Terminal(result) =
+            super::skip_match_day_step(&state, career, &start_date, 1).unwrap()
+        else {
+            panic!("the skip should stop on the contract blocker");
+        };
+        assert_eq!(result["action"], "blocked");
+        assert_eq!(result["days_skipped"], 1);
+        assert!(blocker_by_id(
+            result["blockers"].as_array().unwrap(),
+            "planned_contract_exit_crisis",
+        )
+        .is_some());
+        assert_eq!(
+            state.get_game(|game| game.clock.current_date),
+            Some(start + chrono::Duration::days(1))
+        );
     }
 
     /// Given a healthy game whose only blocker is unread urgent mail, which is informational
@@ -1434,7 +1446,6 @@ mod tests {
 
     /// A game whose user's club has a cup tie `cup_in_days` from today, in `game.competitions` only
     /// (the `game.league` mirror never holds a cup), and its next league match twenty days away.
-    #[cfg(feature = "mcp")]
     fn state_with_a_cup_tie_in(cup_in_days: i64) -> (StateManager, chrono::DateTime<chrono::Utc>) {
         let mut game = make_game_with_matchday();
         let start = game.clock.current_date;
@@ -1489,10 +1500,9 @@ mod tests {
         assert_eq!(clock_and_cup_tie(&state), (start, FixtureStatus::Scheduled));
     }
 
-    /// Given the game's date is the user's match day, and then a date with no match of his
-    /// When the skip's arrival is read
-    /// Then it reached the match day on the first and not on the second: a skip whose 60th day is
-    ///      its match day arrived on it (15076519 told the agent it had not reached a match)
+    /// Given a match day and a day without a match
+    /// When the skip recap checks arrival
+    /// Then only the match day counts as reaching the fixture.
     #[test]
     fn a_skip_ending_on_the_users_match_day_arrived_on_it_whichever_day_it_is() {
         let mut game = make_game_with_matchday();
