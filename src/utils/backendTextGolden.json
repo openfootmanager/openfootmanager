@@ -567,6 +567,118 @@
       }
     },
     {
+      "name": "a roundup whose results data holds a null entry keeps the results the backend wrote",
+      "kind": "article",
+      "input": {
+        "id": "roundup_4",
+        "headline_key": "be.news.roundup.headline0",
+        "body_key": "be.news.roundup.body",
+        "source_key": "be.source.leagueWire",
+        "i18n_params": {
+          "matchday": "5",
+          "totalGoals": "3",
+          "matchCount": "1",
+          "results": "  North 3 - 0 South",
+          "resultsData": "[null]",
+          "biggestWinner": "North"
+        }
+      },
+      "expected": {
+        "headline": "Matchday 5 Round-Up: 3 Goals in Action-Packed Day",
+        "body": "Matchday 5 is in the books. Here are the full results:\n\n  North 3 - 0 South\n\n3 goals scored across 1 matches.{{biggestWinnerLine}}",
+        "source": "League Wire"
+      }
+    },
+    {
+      "name": "a standings update whose data holds a null entry keeps the standings the backend wrote",
+      "kind": "article",
+      "input": {
+        "id": "standings_2",
+        "headline_key": "be.news.standings.headline0",
+        "body_key": "be.news.standings.body",
+        "source_key": "be.source.leagueWire",
+        "i18n_params": {
+          "matchday": "8",
+          "leader": "North",
+          "standings": "  1. North — 19 pts (GD: +9)",
+          "standingsData": "[{\"rank\":1,\"team\":\"North\",\"points\":19,\"goal_difference\":\"+9\"},null]"
+        }
+      },
+      "expected": {
+        "headline": "North Lead the Way After Matchday 8",
+        "body": "After Matchday 8, North sit at the top of the Premier Division table.\n\nStandings:\n  1. North — 19 pts (GD: +9)",
+        "source": "League Wire"
+      }
+    },
+    {
+      "name": "a match report whose scorers data holds a null entry keeps the scorers the backend wrote",
+      "kind": "article",
+      "input": {
+        "id": "report_4",
+        "headline_key": "be.news.matchReport.headline.homeWin.0",
+        "body_key": "be.news.matchReport.body0",
+        "source_key": "be.source.sportsGazette",
+        "i18n_params": {
+          "home": "North",
+          "away": "South",
+          "homeGoals": "2",
+          "awayGoals": "1",
+          "matchday": "5",
+          "winner": "North",
+          "loser": "South",
+          "scorers": "J. Doe (12', North)",
+          "scorersData": "[null]"
+        }
+      },
+      "expected": {
+        "headline": "North 2 - 1 South: Hosts Triumph",
+        "body": "In Matchday 5 action, the match ended North 2 - 1 South. The result could have implications on the league standings as the season progresses.\n\nGoals: J. Doe (12', North)",
+        "source": "Sports Gazette"
+      }
+    },
+    {
+      "name": "a press conference whose quotes data holds a null entry keeps the quote the backend wrote",
+      "kind": "article",
+      "input": {
+        "id": "press_4",
+        "headline_key": "be.news.pressConference.headlineManagerQuote",
+        "body_key": "be.news.pressConference.bodySingle",
+        "source_key": "be.source.leagueWire",
+        "i18n_params": {
+          "team": "South",
+          "result": "0-3",
+          "quote": "A tough afternoon",
+          "quotesData": "[{\"fallback\":\"Another quote\"},null]"
+        }
+      },
+      "expected": {
+        "headline": "South Manager: A tough afternoon",
+        "body": "The South manager spoke briefly after the 0-3 result.\n\n\"A tough afternoon\"",
+        "source": "League Wire"
+      }
+    },
+    {
+      "name": "a transfer roundup whose deals data holds a null entry keeps the deals the backend wrote",
+      "kind": "article",
+      "input": {
+        "id": "roundup_deals_2",
+        "headline_key": "be.news.transferRoundup.headline",
+        "body_key": "be.news.transferRoundup.body",
+        "source_key": "be.source.transferIntelligence",
+        "i18n_params": {
+          "weekStart": "2026-08-03",
+          "transferCount": "1",
+          "deals": "  J. Doe: North -> South (€12.5M)",
+          "dealsData": "[null]"
+        }
+      },
+      "expected": {
+        "headline": "Transfer Roundup — Week of 2026-08-03",
+        "body": "The transfer market stayed busy this week. 1 completed deal(s) stood out across the division.\n\n  J. Doe: North -> South (€12.5M)",
+        "source": "Transfer Intelligence"
+      }
+    },
+    {
       "name": "a preseason digest lays out its friendlies and one unbeaten club",
       "kind": "article",
       "input": {
