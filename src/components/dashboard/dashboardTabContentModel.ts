@@ -1,5 +1,9 @@
 import type { GameStateData, PlayerSelectionOptions } from "../../store/gameStore";
-import type { SquadListSortState } from "../squad/SquadRosterView.state";
+import {
+  DEFAULT_SQUAD_LIST_FILTER_STATE,
+  type SquadListFilterState,
+  type SquadListSortState,
+} from "../squad/SquadRosterView.state";
 import type { DashboardNavigateContext } from "./dashboardProfileNavigation";
 
 export interface DashboardTabContentHandlers {
@@ -8,6 +12,7 @@ export interface DashboardTabContentHandlers {
   onGameUpdate: (state: GameStateData) => void;
   onNavigate: (tab: string, context?: DashboardNavigateContext) => void;
   onSquadListSortChange?: (sortState: SquadListSortState) => void;
+  onSquadListFilterChange?: (filterState: SquadListFilterState) => void;
 }
 
 /**
@@ -28,6 +33,7 @@ export interface DashboardTabContentModel {
   seasonComplete: boolean;
   visitedOnboardingTabs: ReadonlySet<string>;
   squadListSortState: SquadListSortState;
+  squadListFilterState: SquadListFilterState;
   initialMessageId: string | null;
   managerId: string;
   handlers: DashboardTabContentHandlers;
@@ -39,6 +45,7 @@ interface CreateDashboardTabContentModelArgs {
   seasonComplete: boolean;
   visitedOnboardingTabs: ReadonlySet<string>;
   squadListSortState?: SquadListSortState;
+  squadListFilterState?: SquadListFilterState;
   initialMessageId: string | null;
   handlers: DashboardTabContentHandlers;
 }
@@ -55,6 +62,7 @@ export function createDashboardTabContentModel(
       sortKey: "pos",
       sortDir: "asc",
     },
+    squadListFilterState: args.squadListFilterState ?? DEFAULT_SQUAD_LIST_FILTER_STATE,
     initialMessageId: args.initialMessageId,
     managerId: args.gameState.manager.id,
     handlers: args.handlers,

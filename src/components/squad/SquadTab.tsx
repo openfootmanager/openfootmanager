@@ -3,7 +3,7 @@ import { type GameStateData, useGameStore } from "../../store/gameStore";
 import type { PlayerSelectionOptions } from "../../store/gameStore";
 import { useFetchedSquad } from "../../hooks/useFetchedSquad";
 import SquadRosterView from "./SquadRosterView";
-import type { SquadListSortState } from "./SquadRosterView.state";
+import type { SquadListFilterState, SquadListSortState } from "./SquadRosterView.state";
 
 interface SquadTabProps {
   gameState: GameStateData | null;
@@ -12,6 +12,8 @@ interface SquadTabProps {
   onGameUpdate?: (g: GameStateData) => void;
   sortState?: SquadListSortState;
   onSortStateChange?: (sortState: SquadListSortState) => void;
+  filterState?: SquadListFilterState;
+  onFilterStateChange?: (filterState: SquadListFilterState) => void;
 }
 
 export default function SquadTab({
@@ -21,6 +23,8 @@ export default function SquadTab({
   onGameUpdate,
   sortState,
   onSortStateChange,
+  filterState,
+  onFilterStateChange,
 }: SquadTabProps) {
   const { t } = useTranslation();
   const { sessionState } = useGameStore();
@@ -58,6 +62,8 @@ export default function SquadTab({
       onMutationComplete={handleMutationComplete}
       sortState={sortState}
       onSortStateChange={onSortStateChange}
+      filterState={filterState}
+      onFilterStateChange={onFilterStateChange}
     />
   );
 }

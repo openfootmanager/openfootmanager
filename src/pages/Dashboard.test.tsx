@@ -232,12 +232,29 @@ vi.mock("../components/dashboard/DashboardTabContent", () => ({
     viewModel: {
       activeTab: string;
       seasonComplete: boolean;
-      handlers: { onNavigate: (tab: string) => void };
+      squadListFilterState: { search: string; position: string; status: string };
+      handlers: {
+        onNavigate: (tab: string) => void;
+        onSquadListFilterChange: (filters: {
+          search: string;
+          position: string;
+          status: string;
+        }) => void;
+      };
     };
   }) => (
     <div>
       <div>Tab Content {viewModel.activeTab}</div>
       {viewModel.seasonComplete ? <div>season over</div> : null}
+      <span>filters {viewModel.squadListFilterState.status}</span>
+      <button
+        type="button"
+        onClick={() =>
+          viewModel.handlers.onSquadListFilterChange({ search: "", position: "All", status: "xi" })
+        }
+      >
+        set-filter
+      </button>
       <button type="button" onClick={() => viewModel.handlers.onNavigate("Inbox")}>
         content-nav-inbox
       </button>
@@ -500,6 +517,26 @@ describe("Dashboard", () => {
   it("opens on the tab it is given", async () => {
     render(<Dashboard initialTab="Squad" />);
     expect(await screen.findByText("Tab Content Squad")).toBeInTheDocument();
+  });
+
+  /**
+   * Given Squad open and a filter chosen on the roster
+   * When a player's profile opens and Back returns to Squad
+   * Then the filters are still the ones chosen: the page holds them, so the unmounted roster
+   *      cannot take them with it.
+   */
+  it("keeps the squad filters when a profile opens and Back returns", async () => {
+    render(<Dashboard initialTab="Squad" />);
+
+    fireEvent.click(await screen.findByText("set-filter"));
+    expect(screen.getByText("filters xi")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("search-player"));
+    expect(screen.getByText("Player Profile Mock")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("header-back"));
+    expect(screen.getByText("Tab Content Squad")).toBeInTheDocument();
+    expect(screen.getByText("filters xi")).toBeInTheDocument();
   });
 
   /**

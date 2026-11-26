@@ -35,7 +35,9 @@ import {
 } from "../components/dashboard/dashboardProfileNavigation";
 import { createDashboardTabContentModel } from "../components/dashboard/dashboardTabContentModel";
 import {
+  DEFAULT_SQUAD_LIST_FILTER_STATE,
   DEFAULT_SQUAD_LIST_SORT_STATE,
+  type SquadListFilterState,
   type SquadListSortState,
 } from "../components/squad/SquadRosterView.state";
 import {
@@ -153,6 +155,10 @@ export default function Dashboard({
   const [activeSaveId, setActiveSaveId] = useState<string | null>(null);
   const [squadListSortState, setSquadListSortState] = useState<SquadListSortState>(
     DEFAULT_SQUAD_LIST_SORT_STATE,
+  );
+  // Kept here, not in the roster, so visiting a player's profile and coming back does not reset it.
+  const [squadListFilterState, setSquadListFilterState] = useState<SquadListFilterState>(
+    DEFAULT_SQUAD_LIST_FILTER_STATE,
   );
   const squadFitness = useSquadFitness(gameState);
   const [financeVerdict, setFinanceVerdict] = useState<{
@@ -283,6 +289,7 @@ export default function Dashboard({
 
   useEffect(() => {
     setSquadListSortState(DEFAULT_SQUAD_LIST_SORT_STATE);
+    setSquadListFilterState(DEFAULT_SQUAD_LIST_FILTER_STATE);
   }, [activeSaveId]);
 
   useEffect(() => {
@@ -575,6 +582,7 @@ export default function Dashboard({
     seasonComplete,
     visitedOnboardingTabs,
     squadListSortState,
+    squadListFilterState,
     initialMessageId: profileNavigation.initialMessageId,
     handlers: {
       onSelectPlayer: selectPlayer,
@@ -582,6 +590,7 @@ export default function Dashboard({
       onGameUpdate: setGameState,
       onNavigate: handleNavigate,
       onSquadListSortChange: setSquadListSortState,
+      onSquadListFilterChange: setSquadListFilterState,
     },
   });
 
