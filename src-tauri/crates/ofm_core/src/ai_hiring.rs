@@ -1291,6 +1291,53 @@ mod tests {
         );
     }
 
+    /// Given a club that lost a league match to the user's club on the day its manager took
+    ///      charge and another one a few days later
+    /// When the board judges him
+    /// Then the later defeat still draws the rivalry penalty: 50 - 12 for his one result since,
+    ///      then - 10 (38 would mean the penalty was skipped for a manager with a known start)
+    #[test]
+    fn a_defeat_to_the_user_after_he_took_charge_still_counts_with_the_cutoff_set() {
+        let mut game = make_game();
+        seed_ai_managers(&mut game);
+        let user_defeat = |id: &str, date: &str| Fixture {
+            id: id.to_string(),
+            matchday: 1,
+            date: date.to_string(),
+            home_team_id: "team2".to_string(),
+            away_team_id: "team1".to_string(),
+            status: FixtureStatus::Completed,
+            result: Some(MatchResult {
+                home_goals: 0,
+                away_goals: 1,
+                home_scorers: vec![],
+                away_scorers: vec![],
+                report: Some(engine_report()),
+                home_penalties: None,
+                away_penalties: None,
+            }),
+            ..Fixture::default()
+        };
+        game.league = Some(League {
+            id: "league-1".to_string(),
+            name: "Test League".to_string(),
+            season: 1,
+            fixtures: vec![
+                user_defeat("before-he-took-charge", "2026-06-20"),
+                user_defeat("after-he-took-charge", "2026-06-25"),
+            ],
+            ..Default::default()
+        });
+        for date in ["2026-06-20", "2026-06-25"] {
+            finished_a_match(&mut game, "team2", date, "L");
+        }
+        in_charge_since(&mut game, "team2", "2026-06-20");
+
+        update_ai_manager_satisfaction(&mut game);
+
+        assert_eq!(satisfaction_at(&game, "team2"), 28);
+    }
+
     #[test]
     fn seed_ai_managers_does_not_refill_historic_vacancy() {
         let mut game = make_game();
