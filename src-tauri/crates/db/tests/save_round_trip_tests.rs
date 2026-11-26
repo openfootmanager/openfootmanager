@@ -7,8 +7,9 @@
 //! the season harness's `reloaded` does, cannot see that.
 //!
 //! The career is the one the app builds: a generated world, a manager at its strongest club,
-//! competitions, calendar and berths from `begin_career`. It is read back at three moments: after
-//! the career starts, after the manager signs a free agent, and after a season has rolled over.
+//! competitions, calendar and berths from `begin_career`. It is read back after the career starts,
+//! after the manager signs a free agent, after a season has rolled over, and after a fee transfer
+//! completes (to the user's club and between two AI clubs).
 //!
 //! What is compared: the game itself; the five `#[serde(skip)]` fields the game keeps in tables of
 //! their own (`edition_archive`, `retired_players`, `retired_managers`, `archived_messages` and
@@ -26,6 +27,7 @@ use std::sync::OnceLock;
 use chrono::{TimeZone, Utc};
 use db::save_manager::SaveManager;
 use domain::manager::Manager;
+use domain::season::TransferWindowStatus;
 use domain::stats::StatsState;
 use ofm_core::career::{CareerScope, begin_career};
 use ofm_core::clock::GameClock;
@@ -36,6 +38,7 @@ use ofm_core::generator::{
     DefinitionSources, WorldGenConfig, generate_world_data_seeded_with,
     repair_opening_youth_academies,
 };
+use ofm_core::transfers::{TransferNegotiationDecision, make_transfer_bid};
 use ofm_core::turn;
 use serde_json::Value;
 
@@ -421,6 +424,198 @@ fn a_career_after_a_free_agent_signing_loads_back_unchanged() {
     );
 
     assert_nothing_lost(&game, &stats, "after a free-agent signing");
+}
+
+/// Moves the career's clock to the first day the transfer window is open, recording the stats the
+/// days produce so the saved stats are the ones the game wrote.
+fn advance_until_the_window_opens(game: &mut Game, stats: &mut StatsState) {
+    for _ in 0..60 {
+        if matches!(
+            game.season_context.transfer_window.status,
+            TransferWindowStatus::Open | TransferWindowStatus::DeadlineDay
+        ) {
+            return;
+        }
+        turn::process_day_with_capture(game, &mut |day| stats.append(day));
+    }
+    panic!("the transfer window opens within 60 days");
+}
+
+/// The user's club buys a player from an AI club for a fee, trying the AI's counter-offer when it
+/// counters, and returns the player and the fee that were agreed. The window must be open, so an
+/// accepted bid completes in the same call.
+fn buy_a_player_for_a_fee(game: &mut Game) -> Option<(String, u64)> {
+    let user_club = game.manager.team_id.clone()?;
+    let mut candidates: Vec<(String, u64)> = game
+        .players
+        .iter()
+        .filter(|player| {
+            !player.retired
+                && player.market_value > 0
+                && player
+                    .team_id
+                    .as_deref()
+                    .is_some_and(|team_id| team_id != user_club)
+        })
+        .map(|player| (player.id.clone(), player.market_value))
+        .collect();
+    candidates.sort_by_key(|(_, market_value)| *market_value);
+    candidates.truncate(12);
+
+    for (player_id, market_value) in candidates {
+        let mut fee = market_value;
+        for _ in 0..4 {
+            let outcome = match make_transfer_bid(game, &player_id, fee) {
+                Ok(outcome) => outcome,
+                Err(_) => break,
+            };
+            match outcome.decision {
+                TransferNegotiationDecision::Accepted => return Some((player_id, fee)),
+                TransferNegotiationDecision::CounterOffer => {
+                    fee = outcome
+                        .suggested_fee
+                        .unwrap_or_else(|| fee.saturating_mul(11) / 10);
+                }
+                TransferNegotiationDecision::Rejected => break,
+            }
+        }
+    }
+    None
+}
+
+/// Given a career after the manager's club has bought a player for a fee,
+/// When it is saved and loaded back,
+/// Then the game, its archives, the cash journal, the transfer log and the stats are unchanged.
+#[test]
+fn a_career_after_a_fee_transfer_to_the_user_club_loads_back_unchanged() {
+    let (mut game, mut stats) = career();
+    let user_club = game
+        .manager
+        .team_id
+        .clone()
+        .expect("the manager has a club");
+    // The compact generator's strongest club starts with a budget just under the cheapest
+    // player's value. This scenario needs a club that can fund a signing, and the raised budget
+    // is another value the round trip has to keep.
+    if let Some(team) = game.teams.iter_mut().find(|team| team.id == user_club) {
+        team.transfer_budget = 5_000_000;
+    }
+    advance_until_the_window_opens(&mut game, &mut stats);
+    let (player_id, fee) = buy_a_player_for_a_fee(&mut game)
+        .expect("an AI club sells one of the candidates for a fee");
+
+    assert_eq!(
+        game.players
+            .iter()
+            .find(|player| player.id == player_id)
+            .and_then(|player| player.team_id.as_deref()),
+        Some(user_club.as_str()),
+        "the agreed transfer moved the player to the user's club"
+    );
+    assert!(
+        game.competitions
+            .iter()
+            .flat_map(|competition| &competition.transfer_log)
+            .any(|transfer| transfer.player_id == player_id
+                && transfer.to_team_id == user_club
+                && transfer.fee == fee),
+        "the completed fee transfer is in a competition's transfer log"
+    );
+
+    assert_nothing_lost(&game, &stats, "after a fee transfer to the user's club");
+}
+
+/// Given a career in which two AI clubs have completed a fee transfer while the game was played,
+/// When it is saved and loaded back,
+/// Then the game, its archives, the cash journal, the transfer log and the stats are unchanged.
+#[test]
+fn a_career_after_a_fee_transfer_between_two_ai_clubs_loads_back_unchanged() {
+    let (mut game, mut stats) = career();
+    let user_club = game
+        .manager
+        .team_id
+        .clone()
+        .expect("the manager has a club");
+    // The compact generator's market does not reach the appeal an AI-to-AI purchase needs
+    // (a score above 60) on its own: few players are listed and the clubs start with small
+    // budgets. This scenario stages the conditions instead: clubs with money, and the players
+    // whose contracts run out within the year listed at a value that makes them targets. The
+    // transfer still goes through the real market and execution paths, and every staged field
+    // is part of what the round trip has to keep.
+    let today = game.clock.current_date.date_naive();
+    for team in &mut game.teams {
+        team.transfer_budget = 20_000_000;
+    }
+    for player in &mut game.players {
+        let expires_within_the_year = player
+            .contract_end()
+            .and_then(|end| chrono::NaiveDate::parse_from_str(end, "%Y-%m-%d").ok())
+            .is_some_and(|end| (end - today).num_days() <= 365);
+        if expires_within_the_year && player.team_id.as_deref() != Some(user_club.as_str()) {
+            player.transfer_listed = true;
+            player.morale = 40;
+            player.market_value = 1_200_000;
+        }
+    }
+    let mut transfer = None;
+    'seasons: for season in 1..=2 {
+        for _ in 0..600 {
+            if is_season_complete(&game) {
+                break;
+            }
+            turn::process_day_with_capture(&mut game, &mut |day| stats.append(day));
+            transfer = game
+                .competitions
+                .iter()
+                .flat_map(|competition| &competition.transfer_log)
+                .find(|transfer| {
+                    transfer.fee > 0
+                        && transfer.from_team_id != user_club
+                        && transfer.to_team_id != user_club
+                })
+                .cloned();
+            if transfer.is_some() {
+                break 'seasons;
+            }
+        }
+        if season < 2 {
+            advance_to_next_season(&mut game).expect("the season rolls over");
+        }
+    }
+    let transfer =
+        transfer.expect("two AI clubs complete a fee transfer within two played seasons");
+    assert_ne!(transfer.from_team_id, transfer.to_team_id);
+
+    let rumour_ids: HashSet<String> = game
+        .competitions
+        .iter()
+        .flat_map(|competition| competition.transfer_rumours.iter())
+        .map(|rumour| rumour.id.clone())
+        .collect();
+    assert!(
+        !rumour_ids.is_empty(),
+        "the played weeks generated transfer rumours to round-trip"
+    );
+    assert!(
+        game.league
+            .as_ref()
+            .is_some_and(|league| !league.transfer_rumours.is_empty()),
+        "the legacy mirror carries the competition's rumours"
+    );
+
+    assert_nothing_lost(&game, &stats, "after a fee transfer between two AI clubs");
+
+    let (loaded, _) = saved_and_loaded(&game, &stats);
+    let loaded_rumour_ids: HashSet<String> = loaded
+        .competitions
+        .iter()
+        .flat_map(|competition| competition.transfer_rumours.iter())
+        .map(|rumour| rumour.id.clone())
+        .collect();
+    assert_eq!(
+        loaded_rumour_ids, rumour_ids,
+        "the same rumour IDs survive a fresh load"
+    );
 }
 
 /// The harness's loop for one season: a day at a time until the season is complete, then the
