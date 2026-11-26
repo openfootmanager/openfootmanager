@@ -43,6 +43,7 @@ vi.mock("react-i18next", () => ({
       if (key === "common.matchday") return `Matchday ${(params as Record<string, number>)?.n}`;
       if (key === "season.friendly") return "Friendly";
       if (key === "common.team") return "Team";
+      if (key === "common.competition") return "Competition";
       if (key === "common.viewTeam") return "View team";
       if (key === "common.played") return "P";
       if (key === "common.won") return "W";
@@ -596,11 +597,11 @@ describe("ScheduleTab", () => {
     render(<ScheduleTab gameState={state} onSelectTeam={vi.fn()} />);
 
     await waitFor(() => {
-      expect(screen.getByRole("combobox")).toHaveTextContent(
+      expect(screen.getByRole("combobox", { name: "Competition" })).toHaveTextContent(
         "Argentina Division 3 Opening tournament",
       );
     });
-    fireEvent.click(screen.getByRole("combobox"));
+    fireEvent.click(screen.getByRole("combobox", { name: "Competition" }));
 
     expect(
       screen.getByRole("option", { name: "Argentina Division 3 Opening tournament" }),
