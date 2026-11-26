@@ -5337,6 +5337,56 @@ colors:
             .expect("world should have players with parseable birth years")
     }
 
+    /// Given a package whose club authors a player and no shirt number
+    /// When the world is built
+    /// Then the authored player wears a number in 1..=99 that no club-mate also wears.
+    #[test]
+    fn an_authored_player_is_given_a_shirt_number() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "teams/teams.json",
+            r##"{"schema":"team","id":"fc","name":"FC","city":"C","country":"ENG",
+                "colors":{"primary":"#000000","secondary":"#ffffff"}}"##,
+        );
+        write(
+            &dir,
+            "players/club.json",
+            r#"{"schema":"player","items":[{"id":"authored-1","name":"Authored One","club":"fc",
+                "nationality":"ENG","position":"Striker","overall":70}]}"#,
+        );
+        let (package, errors) = load_world_package(&dir);
+        assert!(errors.is_empty(), "{errors:?}");
+        let world =
+            crate::generator::build_world_data_from_package(&package, Some(2026), &embedded());
+        std::fs::remove_dir_all(&dir).ok();
+
+        let player = world
+            .players
+            .iter()
+            .find(|player| player.id == "authored-1")
+            .expect("the authored player is in the built world");
+        let number = player
+            .jersey_number
+            .expect("an authored player wears a shirt number");
+        assert!((1..=99).contains(&number), "{number} is a shirt number");
+        let club_id = player
+            .team_id
+            .as_deref()
+            .expect("the authored player is at his club");
+        let wearers = world
+            .players
+            .iter()
+            .filter(|other| {
+                other.team_id.as_deref() == Some(club_id) && other.jersey_number == Some(number)
+            })
+            .count();
+        assert_eq!(
+            wearers, 1,
+            "no club-mate of the authored player shares number {number}"
+        );
+    }
+
     /// Given a package with a player who names no club (#595)
     /// When the world is built
     /// Then the player exists, as a free agent with their authored identity, instead of being dropped.
