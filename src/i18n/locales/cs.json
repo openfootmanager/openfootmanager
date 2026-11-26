@@ -103,6 +103,7 @@
       "recommended": "Doporučeno"
     },
     "installPackage": "Nainstalovat balíček (.ofm)",
+    "installingPackage": "Instalace balíčku…",
     "noInstalledPackages": "Nejsou nainstalovány žádné balíčky",
     "removePackage": "Odebrat",
     "packageStackErrors": "Chyby v kombinaci balíčků",
@@ -2042,6 +2043,9 @@
     "passAccuracy": "Úspěšnost přihrávek",
     "recentMatches": "Nedávné zápasy",
     "teamStyle": "Týmový styl"
+  },
+  "simLab": {
+    "simulatingGames": "Simulace zápasů: {{games}}"
   },
   "settings": {
     "title": "Nastavení",

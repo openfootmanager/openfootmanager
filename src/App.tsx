@@ -5,6 +5,7 @@ import { useSettingsStore } from "./store/settingsStore";
 import i18n, { changeAppLanguage } from "./i18n";
 import { formatAppVersion } from "./lib/appVersion";
 import { rootFontSizeFor } from "./lib/uiScale";
+import { Spinner } from "./components/ui/Spinner";
 import "./App.css";
 
 const MainMenu = lazy(() => import("./pages/MainMenu"));
@@ -18,7 +19,7 @@ const WorldEditorPage = lazy(() => import("./pages/WorldEditor"));
 function LazyFallback() {
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-navy-900 flex items-center justify-center">
-      <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full motion-safe:animate-spin" />
+      <Spinner className="w-8 h-8 border-4 border-primary-500" />
     </div>
   );
 }

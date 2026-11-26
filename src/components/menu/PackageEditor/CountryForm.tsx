@@ -5,6 +5,7 @@ import { LabeledInput, labelClass } from "./primitives";
 import { EntityFormShell } from "./shared";
 import { Select } from "../../ui/Select";
 import { CountryCombobox } from "../../ui/CountryCombobox";
+import { Spinner } from "../../ui/Spinner";
 import { useNations } from "../../../hooks/useNations";
 import { buildRegionLabel } from "../../../lib/teamRegions";
 import type { ConfederationDef, CountryDef } from "./types";
@@ -120,7 +121,7 @@ export function CountryForm({
       {mode === null ? (
         <div className="flex min-h-[62px] items-center justify-center" aria-live="polite">
           <span className="sr-only">{t("worldEditor.countryLoadingNations")}</span>
-          <div className="h-5 w-5 motion-safe:animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
+          <Spinner decorative className="h-5 w-5 border-2 border-primary-500" />
         </div>
       ) : mode === "builtin" ? (
         <>

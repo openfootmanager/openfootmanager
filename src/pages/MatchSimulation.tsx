@@ -21,6 +21,7 @@ import RoundDigestScreen from "../components/match/RoundDigestScreen";
 import PressConference from "../components/match/PressConference";
 import PenaltyShootoutScreen from "../components/match/PenaltyShootoutScreen";
 import { invokeForCareer } from "../services/careerInvoke";
+import { Spinner } from "../components/ui";
 
 // ---------------------------------------------------------------------------
 // Multi-stage Match Day Orchestrator
@@ -308,8 +309,8 @@ export default function MatchSimulation() {
   if (!snapshot || !gameState) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-navy-900 flex items-center justify-center transition-colors duration-300">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full motion-safe:animate-spin" />
+        <div role="status" className="flex flex-col items-center gap-3">
+          <Spinner decorative className="w-8 h-8 border-4 border-primary-500" />
           <span className="text-gray-500 dark:text-gray-400 font-heading uppercase tracking-wider text-sm">
             {t("dashboard.loading")}
           </span>

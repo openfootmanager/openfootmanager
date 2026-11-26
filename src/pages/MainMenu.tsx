@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useGameStore, type GameStateData } from "../store/gameStore";
 import { ThemeToggle } from "../components/ui/ThemeToggle";
+import { Spinner } from "../components/ui/Spinner";
 import type { CareerStartPhase, CreateManagerFormData } from "../components/menu/CreateManagerForm";
 import type { PackageInfo, PackageIssue } from "../components/menu/WorldSelect";
 import type { ManagerProfile } from "../components/menu/types";
@@ -171,7 +172,7 @@ function focusFirstCreateManagerError(
 function MenuPanelFallback() {
   return (
     <div className="flex min-h-64 items-center justify-center">
-      <div className="h-8 w-8 motion-safe:animate-spin rounded-full border-4 border-primary-500 border-t-transparent" />
+      <Spinner className="h-8 w-8 border-4 border-primary-500" />
     </div>
   );
 }

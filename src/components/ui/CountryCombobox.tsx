@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 
 import { useTranslation } from "react-i18next";
 import { Check, ChevronDown } from "lucide-react";
 import type { CountryFlag as CountryFlagType } from "./CountryFlag";
+import { Spinner } from "./Spinner";
 
 type NationalityOption = { code: string; name: string };
 
@@ -316,7 +317,7 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
               </>
             ) : (
               <div className="flex min-h-16 items-center justify-center p-3">
-                <div className="h-5 w-5 motion-safe:animate-spin rounded-full border-2 border-fg-subtle border-t-transparent" />
+                <Spinner className="h-5 w-5 border-2 border-fg-subtle" />
               </div>
             )}
           </div>

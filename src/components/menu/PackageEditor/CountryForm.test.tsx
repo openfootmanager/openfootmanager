@@ -143,6 +143,7 @@ describe("CountryForm nation picker", () => {
     // this is the spinner frame, and there is no listbox to point at.
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     expect(trigger).not.toHaveAttribute("aria-controls");
+    expect(screen.getByRole("status")).toHaveTextContent("common.loading");
 
     const listbox = await screen.findByRole("listbox");
     expect(trigger).toHaveAttribute("aria-controls", listbox.id);

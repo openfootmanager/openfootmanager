@@ -103,6 +103,7 @@
       "recommended": "推荐"
     },
     "installPackage": "安装包 (.ofm)",
+    "installingPackage": "正在安装包…",
     "noInstalledPackages": "未安装任何包",
     "removePackage": "移除",
     "packageStackErrors": "包组合错误",
@@ -2042,6 +2043,9 @@
     "passAccuracy": "传球成功率",
     "recentMatches": "近期比赛",
     "teamStyle": "球队风格"
+  },
+  "simLab": {
+    "simulatingGames": "正在模拟比赛：{{games}}"
   },
   "settings": {
     "title": "设置",

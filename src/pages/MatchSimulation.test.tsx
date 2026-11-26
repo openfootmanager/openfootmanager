@@ -360,11 +360,25 @@ describe("MatchSimulation", (): void => {
     mockedInvoke.mockReset();
     navigateMock.mockReset();
     setGameStateMock.mockReset();
+    vi.mocked(resetMatchCommands).mockClear();
     locationState = null;
     gameStoreState = {
       gameState: makeGameState(),
       setGameState: setGameStateMock,
     };
+  });
+
+  /**
+   * Given no live snapshot yet
+   * When the match screen renders
+   * Then it says the game state is loading.
+   */
+  it("announces that the game state is loading", (): void => {
+    mockedInvoke.mockReturnValue(new Promise(() => {}));
+
+    render(<MatchSimulation />);
+
+    expect(screen.getByRole("status")).toHaveTextContent("dashboard.loading");
   });
 
   /**

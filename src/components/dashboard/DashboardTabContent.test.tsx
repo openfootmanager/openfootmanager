@@ -91,6 +91,13 @@ function renderTabContent(activeTab: string, seasonComplete = false) {
 }
 
 describe("DashboardTabContent", () => {
+  /** Given a tab that is not loaded yet, when it is selected, then a loading status is announced. */
+  it("announces a loading status while the selected tab loads", () => {
+    renderTabContent("Squad");
+
+    expect(screen.getByRole("status")).toHaveTextContent("Loading...");
+  });
+
   it("renders the home tab immediately for the default dashboard view", () => {
     renderTabContent("Home");
 

@@ -22,6 +22,7 @@ export { PageToolbar } from "./PageToolbar";
 export { SegmentedControl } from "./SegmentedControl";
 export { SortControl } from "./SortControl";
 export { Switch } from "./Switch";
+export { Spinner } from "./Spinner";
 export { TabPanel, Tabs } from "./Tabs";
 export { DataTable, SortHeaderButton } from "./DataTable";
 export type { DataTableColumn, SortDirection } from "./DataTable";

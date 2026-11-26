@@ -21,6 +21,7 @@ vi.mock("react-i18next", () => ({
       if (key === "jobs.rejected") return "Your application was unsuccessful.";
       if (key === "jobs.noJobs") return "No positions currently available.";
       if (key === "jobs.refresh") return "Check for new positions";
+      if (key === "common.loading") return "Loading...";
       if (key === "jobs.sameTeam") return "You are already managing that club.";
       if (key === "jobs.notBetterClub")
         return "You can only apply for clubs that are a step up from your current one.";
@@ -111,6 +112,7 @@ describe("JobOpportunitiesCard", () => {
     expect(screen.getByText("Job Opportunities")).toBeInTheDocument();
     // Spinner is visible (no empty-state text, no job rows)
     expect(screen.queryByText("No positions currently available.")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Loading...");
   });
 
   it("renders the empty state when no jobs are returned", async () => {

@@ -13,6 +13,7 @@ import { listen } from "@tauri-apps/api/event";
 import type { MatchModeType } from "../hooks/useAdvanceTime";
 import { useGameStore } from "../store/gameStore";
 import type { GameStateData, PlayerSelectionOptions } from "../store/gameStore";
+import { Spinner } from "../components/ui";
 import DashboardHeader, {
   type DashboardMatchModeMeta,
 } from "../components/dashboard/DashboardHeader";
@@ -518,8 +519,8 @@ export default function Dashboard({
   if (!gameState) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-page">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 motion-safe:animate-spin rounded-full border-4 border-primary-700 border-t-transparent motion-reduce:animate-none" />
+        <div role="status" className="flex flex-col items-center gap-3">
+          <Spinner decorative className="h-8 w-8 border-4 border-primary-700" />
           <span className="font-heading text-body uppercase tracking-label text-fg-muted">
             {t("dashboard.loading")}
           </span>

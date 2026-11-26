@@ -1,6 +1,6 @@
 import { Suspense, lazy, useId } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, DatePicker, Select } from "../ui";
+import { Button, DatePicker, Select, Spinner } from "../ui";
 import { AlertCircle, ChevronRight, X } from "lucide-react";
 import ManagerProfileList from "./ManagerProfileList";
 import type { ManagerProfile } from "./types";
@@ -55,7 +55,7 @@ function NationalityFieldFallback({ error }: { error?: string }) {
           </span>
         </button>
         <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-          <div className="h-4 w-4 motion-safe:animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
+          <Spinner className="h-4 w-4 border-2 border-primary-500" />
         </div>
       </div>
       {error ? (

@@ -35,6 +35,7 @@ import {
   Select,
   SortControl,
   type SortDirection,
+  Spinner,
   Switch,
   TabPanel,
   Tabs,
@@ -313,6 +314,11 @@ function DisplaySection() {
         <UnreadBadge count={3} />
         <UnreadBadge count={42} />
         <UnreadBadge count={120} />
+      </Row>
+      <Row>
+        {/* A loading ring is still, and still labelled, under reduced motion. */}
+        <Spinner className="h-8 w-8 border-4 border-selected" />
+        <Spinner className="h-5 w-5 border-2 border-selected" />
       </Row>
       <Row>
         {/* The backend's tiers (S, A, B and the rest), at the row's size and a card's. */}

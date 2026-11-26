@@ -27,11 +27,16 @@ function save(overrides: Partial<{ id: string; name: string }> = {}) {
   };
 }
 
-function renderList(saves: ReturnType<typeof save>[], confirmDeleteId: string | null = null) {
+function renderList(
+  saves: ReturnType<typeof save>[],
+  confirmDeleteId: string | null = null,
+  options: { isLoading?: boolean; loadingSaveId?: string | null } = {},
+) {
   render(
     <SavesList
       saves={saves}
-      isLoading={false}
+      isLoading={options.isLoading ?? false}
+      loadingSaveId={options.loadingSaveId}
       confirmDeleteId={confirmDeleteId}
       onLoad={vi.fn()}
       onDelete={vi.fn()}
@@ -98,5 +103,42 @@ describe("SavesList", () => {
 
     const close = screen.getByRole("button", { name: "Close" });
     expect(close).toHaveClass("focus-visible:ring-focus");
+  });
+
+  /** Given the list is fetching saves, when it renders, then it says that saves are loading. */
+  it("announces that the saves are loading", () => {
+    renderList([], null, { isLoading: true });
+
+    expect(screen.getByRole("status")).toHaveTextContent("Loading saves...");
+  });
+
+  /** Given one save is being loaded, when the list renders, then it says that it is loading. */
+  it("announces the save it is loading", () => {
+    renderList([save()], null, { loadingSaveId: "save-1" });
+
+    expect(screen.getByRole("status")).toHaveTextContent("Loading...");
+  });
+
+  /**
+   * Given the list is already shown and not loading
+   * When it starts loading
+   * Then the status region that was mounted before says so: its text changed, rather than a new
+   *      region appearing, which screen readers can miss.
+   */
+  it("announces loading when the list starts loading after it is shown", () => {
+    const props = {
+      saves: [save()],
+      confirmDeleteId: null,
+      onLoad: vi.fn(),
+      onDelete: vi.fn(),
+      onConfirmDelete: vi.fn(),
+      onClose: vi.fn(),
+    };
+    const { rerender } = render(<SavesList {...props} isLoading={false} />);
+    expect(screen.getByRole("status")).toHaveTextContent("");
+
+    rerender(<SavesList {...props} isLoading={true} />);
+
+    expect(screen.getByRole("status")).toHaveTextContent("Loading saves...");
   });
 });

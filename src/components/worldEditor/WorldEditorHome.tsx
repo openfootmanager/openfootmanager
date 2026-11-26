@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Spinner } from "../ui/Spinner";
+import { ArrowLeft, ChevronRight } from "lucide-react";
 import type { WorldMetaDef } from "../menu/PackageEditor/types";
 import { SAMPLE_PACKAGES, type SamplePackage } from "../menu/PackageEditor/sampleData";
 import WorldsHome from "./home/WorldsHome";
@@ -199,7 +200,7 @@ export function WorldEditorHome({
                 className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-xl font-heading font-bold uppercase tracking-wide text-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isBusy ? (
-                  <Loader2 className="w-4 h-4 motion-safe:animate-spin" />
+                  <Spinner decorative className="w-4 h-4 border-2 border-current" />
                 ) : (
                   <ChevronRight className="w-4 h-4" />
                 )}

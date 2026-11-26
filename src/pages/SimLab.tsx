@@ -1,5 +1,7 @@
 import { useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
+import { Spinner } from "../components/ui/Spinner";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -124,14 +126,19 @@ const defaultConfig = (): SimBatchConfig => ({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function SimLab() {
+  const { t } = useTranslation();
   const [cfg, setCfg] = useState<SimBatchConfig>(defaultConfig);
   const [results, setResults] = useState<SimBatchResults | null>(null);
   const [running, setRunning] = useState(false);
+  // The count the running batch was submitted with: the input stays editable, so reading cfg
+  // again could announce a number the backend never received.
+  const [submittedGames, setSubmittedGames] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("Overview");
 
   const run = useCallback(async () => {
     setRunning(true);
+    setSubmittedGames(cfg.games);
     setError(null);
     try {
       const res = await invoke<SimBatchResults>("run_sim_batch", { config: cfg });
@@ -141,6 +148,7 @@ export default function SimLab() {
       setError(String(e));
     } finally {
       setRunning(false);
+      setSubmittedGames(null);
     }
   }, [cfg]);
 
@@ -310,10 +318,15 @@ export default function SimLab() {
 
           {!results && !running && <EmptyState />}
 
+          {/* Mounted while idle, so starting a run changes the live region's text. */}
+          <div role="status" className="sr-only">
+            {running ? t("simLab.simulatingGames", { games: submittedGames ?? cfg.games }) : ""}
+          </div>
+
           {running && (
             <div className="flex items-center gap-3 text-slate-400">
-              <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full motion-safe:animate-spin" />
-              Simulating {cfg.games.toLocaleString()} games…
+              <Spinner decorative className="w-5 h-5 border-2 border-blue-400" />
+              {t("simLab.simulatingGames", { games: submittedGames ?? cfg.games })}
             </div>
           )}
 

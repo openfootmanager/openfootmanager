@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertCircle, Check, ChevronDown } from "lucide-react";
 import type { CountryFlag } from "../ui/CountryFlag";
+import { Spinner } from "../ui/Spinner";
 import type { CreateManagerFormData } from "./CreateManagerForm";
 
 type NationalityOption = { code: string; name: string };
@@ -248,7 +249,7 @@ export default function CreateManagerNationalityField({
               </>
             ) : (
               <div className="flex min-h-24 items-center justify-center p-3">
-                <div className="h-6 w-6 motion-safe:animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
+                <Spinner className="h-6 w-6 border-2 border-primary-500" />
               </div>
             )}
           </div>

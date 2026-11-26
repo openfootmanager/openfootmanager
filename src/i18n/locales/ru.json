@@ -103,6 +103,7 @@
       "recommended": "Рекомендуется"
     },
     "installPackage": "Установить пакет (.ofm)",
+    "installingPackage": "Установка пакета…",
     "noInstalledPackages": "Пакеты не установлены",
     "removePackage": "Удалить",
     "packageStackErrors": "Ошибки объединения пакетов",
@@ -2042,6 +2043,9 @@
     "passAccuracy": "Точность передач",
     "recentMatches": "Последние матчи",
     "teamStyle": "Стиль игры"
+  },
+  "simLab": {
+    "simulatingGames": "Симуляция матчей: {{games}}"
   },
   "settings": {
     "title": "Настройки",

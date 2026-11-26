@@ -103,6 +103,7 @@
       "recommended": "Recomendado"
     },
     "installPackage": "Instalar pacote (.ofm)",
+    "installingPackage": "A instalar o pacote…",
     "noInstalledPackages": "Nenhum pacote instalado",
     "removePackage": "Remover",
     "packageStackErrors": "Erros de combinação de pacotes",
@@ -2042,6 +2043,9 @@
     "passAccuracy": "Precisão de passe",
     "recentMatches": "Jogos recentes",
     "teamStyle": "Estilo de jogo"
+  },
+  "simLab": {
+    "simulatingGames": "A simular jogos: {{games}}"
   },
   "settings": {
     "title": "Definições",

@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, CheckCircle, ImagePlus, Loader2, X } from "lucide-react";
+import { ArrowLeft, CheckCircle, ImagePlus, X } from "lucide-react";
 import { LabeledInput, LabeledSelect, labelClass } from "./primitives";
 import { useAssetPicker } from "./useAssetPicker";
 import { CountryCombobox } from "../../ui/CountryCombobox";
+import { Spinner } from "../../ui/Spinner";
 import JerseyIcon from "../../ui/JerseyIcon";
 import { PLAY_STYLES, makeRange, normalizePlayStyle, parseRangeBound, toSlug } from "./helpers";
 import {
@@ -393,7 +394,7 @@ export function TeamForm({
           className="w-full py-3 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-xl font-heading font-bold uppercase tracking-wide transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {isBusy ? (
-            <Loader2 className="w-4 h-4 motion-safe:animate-spin" />
+            <Spinner decorative className="w-4 h-4 border-2 border-current" />
           ) : (
             <CheckCircle className="w-4 h-4" />
           )}

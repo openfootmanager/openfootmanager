@@ -103,6 +103,7 @@
       "recommended": "Önerilen"
     },
     "installPackage": "Paket Yükle (.ofm)",
+    "installingPackage": "Paket yükleniyor…",
     "noInstalledPackages": "Yüklü paket yok",
     "removePackage": "Kaldır",
     "packageStackErrors": "Paket kombinasyonu hataları",
@@ -2042,6 +2043,9 @@
     "passAccuracy": "Pas İsabeti",
     "recentMatches": "Son Maçlar",
     "teamStyle": "Takım Stili"
+  },
+  "simLab": {
+    "simulatingGames": "Maç simülasyonu: {{games}}"
   },
   "settings": {
     "title": "Ayarlar",
