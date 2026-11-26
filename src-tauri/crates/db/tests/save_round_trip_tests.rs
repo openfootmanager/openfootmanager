@@ -423,6 +423,56 @@ fn a_career_after_a_free_agent_signing_loads_back_unchanged() {
     assert_nothing_lost(&game, &stats, "after a free-agent signing");
 }
 
+/// Given a career saved after one rollover, then rolled over again and saved to the same career,
+/// When it is loaded by a fresh reader,
+/// Then the season preview is the latest season's, not the article stored under the same id.
+#[test]
+fn a_season_preview_replaced_under_the_same_id_loads_back_current() {
+    let (mut game, mut stats) = career();
+    let saves = tempfile::tempdir().unwrap();
+    let mut writer = SaveManager::init(saves.path()).unwrap();
+
+    play_a_season(&mut game, &mut stats, 1);
+    let first_preview = game
+        .news
+        .iter()
+        .find(|article| article.id == "season_preview")
+        .cloned()
+        .expect("the first rollover wrote a season preview");
+    let save_id = writer
+        .create_save_with_stats(&game, &stats, "Two seasons")
+        .unwrap();
+
+    play_a_season(&mut game, &mut stats, 2);
+    let second_preview = game
+        .news
+        .iter()
+        .find(|article| article.id == "season_preview")
+        .cloned()
+        .expect("the second rollover wrote a season preview");
+    assert_ne!(
+        second_preview.date, first_preview.date,
+        "the two seasons have different previews"
+    );
+    writer
+        .save_game_with_stats(&game, &stats, &save_id)
+        .unwrap();
+
+    let mut reader = SaveManager::init(saves.path()).unwrap();
+    let loaded = reader
+        .load_game(&save_id)
+        .unwrap_or_else(|error| panic!("the save did not load back: {error}"));
+    let loaded_preview = loaded
+        .news
+        .iter()
+        .find(|article| article.id == "season_preview")
+        .expect("the preview loaded");
+    assert_eq!(loaded_preview.date, second_preview.date);
+    assert_eq!(loaded_preview.headline, second_preview.headline);
+    assert_eq!(loaded_preview.body, second_preview.body);
+    assert_eq!(loaded_preview.i18n_params, second_preview.i18n_params);
+}
+
 /// The harness's loop for one season: a day at a time until the season is complete, then the
 /// rollover.
 fn play_a_season(game: &mut Game, stats: &mut StatsState, season: usize) {

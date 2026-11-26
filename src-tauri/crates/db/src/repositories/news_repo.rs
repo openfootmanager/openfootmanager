@@ -62,13 +62,17 @@ pub fn upsert_news_list(conn: &Connection, articles: &[NewsArticle]) -> Result<(
 /// season rollover clears `game.news`, and with upsert-only writes last season's coverage came
 /// back on the next load (and let a stale `roundup_md1` suppress the new season's first roundup).
 ///
-/// An article is written once and then only ever marked read, and the season rollover retires
-/// the whole feed, so the difference is small: new ids are inserted, a changed read flag is
-/// updated, and ids the feed no longer holds are deleted. The stored feed ends up exactly
-/// `articles`, each id once. Runs on the caller's connection, which `save_game` wraps in a transaction,
-/// so an interrupted save cannot leave the feed half-written.
+/// An article's id can repeat across seasons while its content changes: the season preview and
+/// `roundup_md1` reuse theirs, and the rollover clears the feed before filling it again. An
+/// existing article is therefore rewritten when its content or read flag differs, not only when
+/// its read flag does; ids the feed no longer holds are deleted. The stored feed ends up exactly
+/// `articles`, each id once. Runs on the caller's connection, which `save_game` wraps in a
+/// transaction, so an interrupted save cannot leave the feed half-written.
 pub fn sync_news_list(conn: &Connection, articles: &[NewsArticle]) -> Result<(), String> {
-    let mut stored = stored_read_flags(conn)?;
+    let stored: std::collections::HashMap<String, NewsArticle> = load_all_news(conn)?
+        .into_iter()
+        .map(|article| (article.id.clone(), article))
+        .collect();
     let wanted: std::collections::HashSet<&str> =
         articles.iter().map(|article| article.id.as_str()).collect();
     for retired in stored.keys().filter(|id| !wanted.contains(id.as_str())) {
@@ -76,32 +80,11 @@ pub fn sync_news_list(conn: &Connection, articles: &[NewsArticle]) -> Result<(),
             .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     }
     for article in articles {
-        match stored.get(&article.id) {
-            Some(read) if *read == article.read => {}
-            Some(_) => {
-                conn.execute(
-                    "UPDATE news SET read = ?2 WHERE id = ?1",
-                    params![article.id, article.read as i32],
-                )
-                .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
-            }
-            None => upsert_news(conn, article)?,
+        if stored.get(&article.id) != Some(article) {
+            upsert_news(conn, article)?;
         }
-        stored.insert(article.id.clone(), article.read);
     }
     Ok(())
-}
-
-fn stored_read_flags(conn: &Connection) -> Result<std::collections::HashMap<String, bool>, String> {
-    let mut stmt = conn
-        .prepare("SELECT id, read FROM news")
-        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
-    stmt.query_map([], |row| {
-        Ok((row.get::<_, String>(0)?, row.get::<_, i32>(1)? != 0))
-    })
-    .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?
-    .map(|row| row.map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string()))
-    .collect()
 }
 
 fn parse_news_category(s: &str) -> NewsCategory {
@@ -257,6 +240,39 @@ mod tests {
         let score = all[0].match_score.as_ref().unwrap();
         assert_eq!(score.home_goals, 2);
         assert_eq!(score.away_goals, 1);
+    }
+
+    /// Given last season's preview is stored under `season_preview`
+    /// When the new season's preview is synced under the same id
+    /// Then a fresh load returns the new content, not the stored article.
+    #[test]
+    fn sync_news_list_replaces_an_article_whose_content_changed() {
+        let db = test_db();
+        let last_season = NewsArticle::new(
+            "season_preview".to_string(),
+            "2025/26 Preview".to_string(),
+            "Last season's contenders.".to_string(),
+            "OFM News".to_string(),
+            "2025-08-01".to_string(),
+            NewsCategory::SeasonPreview,
+        );
+        upsert_news(db.conn(), &last_season).unwrap();
+
+        let this_season = NewsArticle::new(
+            "season_preview".to_string(),
+            "2026/27 Preview".to_string(),
+            "This season's contenders.".to_string(),
+            "OFM News".to_string(),
+            "2026-08-01".to_string(),
+            NewsCategory::SeasonPreview,
+        );
+        sync_news_list(db.conn(), &[this_season]).unwrap();
+
+        let loaded = load_all_news(db.conn()).unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].headline, "2026/27 Preview");
+        assert_eq!(loaded[0].body, "This season's contenders.");
+        assert_eq!(loaded[0].date, "2026-08-01");
     }
 
     #[test]
