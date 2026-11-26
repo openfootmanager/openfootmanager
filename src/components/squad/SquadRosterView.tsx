@@ -70,6 +70,20 @@ interface SquadRosterViewProps {
   onFilterStateChange?: (filterState: SquadListFilterState) => void;
 }
 
+/** The label key of a status filter that needs the backend's lineup grades to list players. */
+function gradedStatusLabelKey(status: SquadListStatusFilter): string | null {
+  switch (status) {
+    case "naturalFit":
+      return "squad.naturalFit";
+    case "needsCover":
+      return "squad.needsCover";
+    case "outOfPosition":
+      return "squad.outOfPosition";
+    default:
+      return null;
+  }
+}
+
 export default function SquadRosterView({
   players,
   squadAnswered,
@@ -113,6 +127,9 @@ export default function SquadRosterView({
   // One flag for grading and for changing a lineup: the table, the familiarity and the squad's
   // answer for this revision.
   const canGradeLineup = lineupReady(positionTable, familiarity) && squadAnswered;
+  // A fit filter chosen before a reload stays shown while the grades load: the list is still
+  // filtered by it, so the select must not fall back to "All Players".
+  const heldGradedStatus = canGradeLineup ? null : gradedStatusLabelKey(statusFilter);
   const roster = players
     .filter((player) => isFirstTeamSquadPlayer(player))
     .sort(
@@ -470,8 +487,16 @@ export default function SquadRosterView({
               <option value="xi">{t("preMatch.startingXI")}</option>
               <option value="bench">{t("preMatch.substitutes")}</option>
               {/* The fit filters read the backend's lines and grade; until they arrive they would
-                  show an empty list, or drop players they should keep, so they are not offered. */}
-              {canGradeLineup ? <option value="naturalFit">{t("squad.naturalFit")}</option> : null}
+                  show an empty list, or drop players they should keep, so they are not offered.
+                  A fit filter held from before a reload stays visible, disabled, so the list is
+                  not filtered by a value the select no longer names. */}
+              {canGradeLineup ? (
+                <option value="naturalFit">{t("squad.naturalFit")}</option>
+              ) : heldGradedStatus ? (
+                <option value={statusFilter} disabled>
+                  {t(heldGradedStatus)}
+                </option>
+              ) : null}
               {canGradeLineup ? <option value="needsCover">{t("squad.needsCover")}</option> : null}
               {canGradeLineup ? (
                 <option value="outOfPosition">{t("squad.outOfPosition")}</option>

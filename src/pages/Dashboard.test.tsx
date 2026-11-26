@@ -528,14 +528,48 @@ describe("Dashboard", () => {
   it("keeps the squad filters when a profile opens and Back returns", async () => {
     render(<Dashboard initialTab="Squad" />);
 
-    fireEvent.click(await screen.findByText("set-filter"));
+    fireEvent.click(await screen.findByRole("button", { name: "set-filter" }));
     expect(screen.getByText("filters xi")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText("search-player"));
+    fireEvent.click(screen.getByRole("button", { name: "search-player" }));
     expect(screen.getByText("Player Profile Mock")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText("header-back"));
+    fireEvent.click(screen.getByRole("button", { name: "header-back" }));
     expect(screen.getByText("Tab Content Squad")).toBeInTheDocument();
+    expect(screen.getByText("filters xi")).toBeInTheDocument();
+  });
+
+  /**
+   * Given Squad open, a filter chosen, and a save id that was read
+   * When a same-save refresh cannot read the save id
+   * Then the filters stay: an unreadable id is not a different career.
+   */
+  it("keeps the squad filters when a refresh cannot read the save id", async () => {
+    let saveIdRequests = 0;
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_active_game") return gameState;
+      if (command === "get_finance_snapshot") return { snapshot: backendFinanceSnapshot };
+      if (command === "get_active_save_id") {
+        saveIdRequests += 1;
+        if (saveIdRequests === 1) return "save-1";
+        throw new Error("save id unavailable");
+      }
+      return null;
+    });
+
+    render(<Dashboard initialTab="Squad" />);
+
+    // Let the first save-id read settle, so the arrival of the id is not mistaken for a change.
+    await act(async () => {});
+    fireEvent.click(await screen.findByRole("button", { name: "set-filter" }));
+    expect(screen.getByText("filters xi")).toBeInTheDocument();
+
+    const gameStateChangedHandler = registeredEventHandlers.get("game-state-changed");
+    expect(gameStateChangedHandler).toBeTypeOf("function");
+    await act(async () => {
+      await gameStateChangedHandler?.();
+    });
+
     expect(screen.getByText("filters xi")).toBeInTheDocument();
   });
 

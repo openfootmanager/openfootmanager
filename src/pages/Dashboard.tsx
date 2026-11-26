@@ -287,7 +287,12 @@ export default function Dashboard({
     setVisitedOnboardingTabs(loadVisitedOnboardingTabs(gameState, undefined, activeSaveId));
   }, [gameState, activeSaveId]);
 
+  // Filters are kept across a refresh whose save id could not be read: only a new save id means a
+  // different career, so only that clears them.
+  const lastSaveIdForFilters = useRef<string | null>(null);
   useEffect(() => {
+    if (activeSaveId === null || lastSaveIdForFilters.current === activeSaveId) return;
+    lastSaveIdForFilters.current = activeSaveId;
     setSquadListSortState(DEFAULT_SQUAD_LIST_SORT_STATE);
     setSquadListFilterState(DEFAULT_SQUAD_LIST_FILTER_STATE);
   }, [activeSaveId]);

@@ -1318,6 +1318,36 @@ describe("SquadTab", () => {
   });
 
   /**
+   * Given the roster holds a fit filter (as it does on returning from a profile) before the
+   *       position table has loaded
+   * When the status select renders
+   * Then it still names that filter, disabled, rather than falling back to All Players while the
+   *      list stays filtered.
+   */
+  it("shows a held fit filter while the grades load instead of All Players", () => {
+    positionTableState.arrived = false;
+    try {
+      render(
+        <SquadTab
+          gameState={makeGameState()}
+          managerId="mgr1"
+          onSelectPlayer={vi.fn()}
+          onGameUpdate={vi.fn()}
+          filterState={{ search: "", position: "All", status: "naturalFit" }}
+          onFilterStateChange={vi.fn()}
+        />,
+      );
+
+      const status = screen.getByRole("combobox", { name: "common.status" });
+      expect(status).toHaveTextContent("squad.naturalFit");
+      fireEvent.click(status);
+      expect(screen.getByRole("option", { name: "squad.naturalFit" })).toBeDisabled();
+    } finally {
+      positionTableState.arrived = true;
+    }
+  });
+
+  /**
    * Given the position table has arrived but the backend's familiarity has not
    * When Squad is drawn
    * Then no coverage is claimed (the badges, the panel and the "needs cover" filter wait), because
