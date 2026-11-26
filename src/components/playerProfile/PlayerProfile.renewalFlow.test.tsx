@@ -116,6 +116,86 @@ describe("PlayerProfile contract surfaces", () => {
     });
   });
 
+  /**
+   * Given a wage whose projection puts the club over the soft cap
+   * When the manager retypes a valid wage and that projection is still loading
+   * Then the old restriction is gone and Submit follows the new wage, not the previous answer.
+   */
+  it("drops the previous wage's projection while the next one loads", async () => {
+    let holdNextPreview = false;
+    let resolveHeldPreview: ((value: unknown) => void) | undefined;
+
+    vi.mocked(invoke).mockImplementation(async (command: string, payload?: InvokeArgs) => {
+      if (command === "preview_renewal_financial_impact") {
+        const args = payload as MockInvokePayload | undefined;
+        const offered = Number(args?.weeklyWage ?? 0);
+
+        if (holdNextPreview) {
+          return new Promise((resolve) => {
+            resolveHeldPreview = resolve;
+          });
+        }
+
+        return {
+          projection: {
+            current_annual_wage_bill: 24000,
+            projected_annual_wage_bill: 24000 - 12000 + offered,
+            annual_wage_budget: 50000,
+            annual_soft_cap: 55000,
+            current_weekly_wage_spend: 24000,
+            projected_weekly_wage_spend: 24000 - 12000 + offered,
+            current_cash_runway_weeks: 1084,
+            projected_cash_runway_weeks: 500,
+            currently_over_budget: false,
+            policy_allows: offered <= 55000,
+          },
+        };
+      }
+
+      return defaultInvokeResponse(command);
+    });
+
+    renderOnTab("Contract tab", <RenewalHarness />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Renew Contract" }));
+
+    fireEvent.change(screen.getByLabelText("Offered Wage"), {
+      target: { value: "60000" },
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Exceeds wage budget")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Submit Offer" })).toBeDisabled();
+    });
+
+    // The next projection never answers while the assertions run: the previous wage's answer must
+    // not stand in for it.
+    holdNextPreview = true;
+    fireEvent.change(screen.getByLabelText("Offered Wage"), {
+      target: { value: "12000" },
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText("Exceeds wage budget")).toBeNull();
+      expect(screen.getByRole("button", { name: "Submit Offer" })).toBeEnabled();
+    });
+
+    // Answer the held request so the test leaves no promise for the next test to inherit.
+    resolveHeldPreview?.({
+      projection: {
+        current_annual_wage_bill: 24000,
+        projected_annual_wage_bill: 24000,
+        annual_wage_budget: 50000,
+        annual_soft_cap: 55000,
+        current_weekly_wage_spend: 24000,
+        projected_weekly_wage_spend: 24000,
+        current_cash_runway_weeks: 1084,
+        projected_cash_runway_weeks: 1084,
+        currently_over_budget: false,
+        policy_allows: true,
+      },
+    });
+  });
+
   it("submits a renewal offer and refreshes contract data when accepted", async () => {
     const updatedPlayer = createPlayer({
       contract_end: "2029-08-01",
