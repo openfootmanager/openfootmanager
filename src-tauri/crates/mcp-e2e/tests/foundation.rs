@@ -1,3 +1,4 @@
+#![cfg(unix)]
 //! The fixture itself: start, answer, stop, and report what broke.
 //!
 //! Every test needs a built `--features mcp` binary and a display, so they are ignored by default

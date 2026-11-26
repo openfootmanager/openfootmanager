@@ -1,3 +1,4 @@
+#![cfg(unix)]
 //! A headless run must never put a window on the display.
 //!
 //! Needs a built `--features mcp` binary and an X display (`xvfb-run -a`). One test only, so no

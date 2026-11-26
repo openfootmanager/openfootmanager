@@ -1,3 +1,4 @@
+#![cfg(unix)]
 //! The smoke subset: the scenarios that run first in the nightly. A failure here stops the rest.
 //!
 //! Every test needs a built `--features mcp` binary and a display. Reproduce one with
