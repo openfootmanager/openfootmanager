@@ -15,7 +15,7 @@ pub enum NewsCategory {
     Editorial,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct NewsArticle {
     pub id: String,
     pub headline: String,
@@ -44,7 +44,7 @@ pub struct NewsArticle {
     pub i18n_params: HashMap<String, String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct NewsMatchScore {
     pub home_team_id: String,
     pub away_team_id: String,
