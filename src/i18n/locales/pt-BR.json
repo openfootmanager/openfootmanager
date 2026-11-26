@@ -3975,9 +3975,9 @@
       },
       "seasonPreview": {
         "headline0": "Prévia da Temporada: {{teamCount}} Times Lutam pela Glória",
-        "headline1": "Temporada da Primeira Divisão Prestes a Começar",
+        "headline1": "Temporada de {{competition}} prestes a começar",
         "headline2": "O {{favourite}} Pode Conquistar o Título? Prévia da Temporada",
-        "body": "A Primeira Divisão está pronta para começar com {{teamCount}} times disputando o título.\n\nAs previsões de pré-temporada apontam o {{favourite}} como favorito, mas o {{darkHorse}} pode ser a surpresa desta campanha.\n\nCom novos treinadores assumindo o comando em alguns clubes, esta temporada promete ser uma das mais competitivas da história recente. Cada ponto vai importar na corrida pelo título.\n\nTimes: {{teamList}}"
+        "body": "{{competition}} está pronta para começar com {{teamCount}} times disputando o título.\n\nAs previsões de pré-temporada apontam o {{favourite}} como favorito, mas o {{darkHorse}} pode ser a surpresa desta campanha.\n\nCom novos treinadores assumindo o comando em alguns clubes, esta temporada promete ser uma das mais competitivas da história recente. Cada ponto vai importar na corrida pelo título.\n\nTimes: {{teamList}}"
       },
       "managerialChange": {
         "headline": "{{team}} demite {{manager}}",

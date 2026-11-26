@@ -1136,7 +1136,24 @@ mod info_news_tests {
                 "2026-02-14",
             ),
             ofm_core::news::season_preview_article(
-                &["North".to_string(), "South".to_string()],
+                &[
+                    ofm_core::news::PreviewClub {
+                        name: "North".to_string(),
+                        strength: 62.0,
+                    },
+                    ofm_core::news::PreviewClub {
+                        name: "South".to_string(),
+                        strength: 58.0,
+                    },
+                ],
+                Some(&ofm_core::news::PreviewCompetition {
+                    name: "Northern Premier Division".to_string(),
+                    name_key: Some("tournaments.competitions.tierDivision".to_string()),
+                    country_id: Some("GB".to_string()),
+                    season: 2,
+                    tier: Some(1),
+                    phase: Some("annual".to_string()),
+                }),
                 "2026-02-14",
             ),
         ];
