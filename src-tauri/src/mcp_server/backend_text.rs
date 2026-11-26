@@ -202,6 +202,11 @@ fn expand_standings(params: &mut Params) -> Vec<&'static str> {
     else {
         return Vec::new();
     };
+    // A null row makes the screen's `entry.rank` throw and abandon the table; do the same, so the
+    // raw data stays in the details rather than turning into an empty row.
+    if entries.iter().any(Value::is_null) {
+        return Vec::new();
+    }
 
     let standings = entries
         .iter()
@@ -236,6 +241,11 @@ fn expand_standings(params: &mut Params) -> Vec<&'static str> {
 fn expand_results(data: &str, line_key: &str) -> Option<String> {
     let results = serde_json::from_str::<Value>(data).ok()?;
     let results = results.as_array()?;
+    // A null row makes the screen's `result.home` throw and abandon the whole family; do the
+    // same, so the raw data stays in the details rather than turning into an empty line.
+    if results.iter().any(Value::is_null) {
+        return None;
+    }
     let lines = results
         .iter()
         .map(|result| {
@@ -777,6 +787,61 @@ mod tests {
                 })).collect::<Vec<_>>(),
             })).collect::<Vec<_>>(),
         })
+    }
+
+    /// Given a roundup whose structured results contain a null row
+    /// When the article is resolved
+    /// Then the family is left unexpanded: the raw data stays in the details, and no empty line is
+    ///      written into the sentence
+    #[test]
+    fn a_null_result_row_keeps_the_raw_data_in_the_details() {
+        let article = article_from(&json!({
+            "body_key": "be.news.roundup.body",
+            "i18n_params": {
+                "matchday": "5", "totalGoals": "0", "matchCount": "1",
+                "resultsData": "[null]",
+            },
+        }));
+
+        let resolved = resolve_article(&article);
+
+        assert!(
+            resolved.details.contains_key("resultsData"),
+            "the raw data was dropped: {:?}",
+            resolved.details
+        );
+        assert!(
+            !resolved.body.contains("   -  "),
+            "an empty result line was written: {}",
+            resolved.body
+        );
+    }
+
+    /// Given a standings article whose table contains a null row
+    /// When the article is resolved
+    /// Then the table is left unexpanded, so the raw data stays in the details and no empty row is
+    ///      written into the sentence
+    #[test]
+    fn a_null_standings_row_keeps_the_raw_data_in_the_details() {
+        let article = article_from(&json!({
+            "body_key": "be.news.standings.body",
+            "i18n_params": {
+                "matchday": "5", "leader": "North", "standingsData": "[null]",
+            },
+        }));
+
+        let resolved = resolve_article(&article);
+
+        assert!(
+            resolved.details.contains_key("standingsData"),
+            "the raw data was dropped: {:?}",
+            resolved.details
+        );
+        assert!(
+            !resolved.body.contains("pts (GD"),
+            "an empty standings row was written: {}",
+            resolved.body
+        );
     }
 
     /// Given the cases `backendI18n.ts` resolved into `backendTextGolden.json`
