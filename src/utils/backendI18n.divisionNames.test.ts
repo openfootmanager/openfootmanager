@@ -60,6 +60,34 @@ describe("division-change message names", () => {
   });
 
   /**
+   * Given a relegation into a second-tier split-season league, closing phase
+   * When the notice is resolved
+   * Then the same tier and phase metadata localize the name in the subject and the body
+   */
+  it("localizes the tier and closing phase in a relegation notice", () => {
+    const relegation = resolveMessage(
+      makeMessage({
+        subject_key: "be.msg.relegation.subject",
+        body_key: "be.msg.relegation.body",
+        i18n_params: {
+          division: "Germany Division 2",
+          divisionKey: "tournaments.competitions.tierDivision",
+          divisionCountry: "DE",
+          divisionSeason: "2032",
+          divisionTier: "2",
+          divisionPhase: "closing",
+          season: "2032",
+        },
+      }),
+    );
+
+    expect(relegation.subject).toContain("Deutschland 2. Liga");
+    expect(relegation.subject).toContain("Abschlussturnier");
+    expect(relegation.body).toContain("Deutschland 2. Liga");
+    expect(relegation.body).toContain("Abschlussturnier");
+  });
+
+  /**
    * Given a legacy notice with no tier metadata
    * When its generic tier key cannot be rendered safely
    * Then the original stored division name remains the fallback
