@@ -1,3 +1,4 @@
+#![cfg(unix)]
 //! Drives the built app the way an agent does: one real process per scenario, spoken to over
 //! MCP, with the results read back as the typed structs the server itself serializes.
 //!

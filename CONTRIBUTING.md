@@ -77,6 +77,28 @@ After cloning the repository, install the frontend dependencies:
 npm install
 ```
 
+#### Windows
+
+Git for Windows defaults to `core.autocrlf=true`, which checks the tree out with CRLF line endings.
+The repository stores LF, and Biome's formatter and the SQL migration test compare against it, so a
+CRLF checkout fails `npm run format:check` and `cargo test`. Clone with the setting already off, so
+it applies before the first checkout:
+
+```bash
+git clone --config core.autocrlf=false https://github.com/openfootmanager/openfootmanager.git
+```
+
+If you already cloned without it, set the option and re-materialise the files from a clean tree:
+
+```bash
+git config core.autocrlf false
+git rm -r --cached . && git reset --hard
+```
+
+The test binaries delay-load comctl32 from `src-tauri/build.rs`, so `cargo test --lib` starts
+without a manual `mt.exe` step. The Unix-only `mcp-e2e` suite compiles to an empty crate on Windows,
+so `cargo test --workspace` runs the rest of the workspace.
+
 To run the debug version of the project (starts both the Vite server and the Tauri app):
 
 ```bash
