@@ -496,6 +496,70 @@
         "body": "Plain body.",
         "source": "Wire"
       }
+    },
+    {
+      "name": "a roundup article lays out each result and names the biggest winner",
+      "kind": "article",
+      "input": {
+        "id": "news_roundup_1",
+        "headline_key": "be.news.roundup.headline0",
+        "body_key": "be.news.roundup.body",
+        "source_key": "be.source.leagueChronicle",
+        "i18n_params": {
+          "matchday": "5",
+          "totalGoals": "3",
+          "matchCount": "2",
+          "biggestWinner": "North",
+          "resultsData": "[{\"home\":\"North\",\"home_goals\":2,\"away\":\"South\",\"away_goals\":1},{\"home\":\"East\",\"homeGoals\":0,\"away\":\"West\",\"awayGoals\":0}]"
+        }
+      },
+      "expected": {
+        "headline": "Matchday 5 Round-Up: 3 Goals in Action-Packed Day",
+        "body": "Matchday 5 is in the books. Here are the full results:\n\n  North 2 - 1 South\n  East 0 - 0 West\n\n3 goals scored across 2 matches. North recorded the biggest win of the day.",
+        "source": "League Chronicle"
+      }
+    },
+    {
+      "name": "a preseason digest lists the friendlies and the teams still unbeaten",
+      "kind": "article",
+      "input": {
+        "id": "news_preseason_1",
+        "headline_key": "be.news.preseasonDigest.headline",
+        "body_key": "be.news.preseasonDigest.bodyWithResults",
+        "source_key": "be.source.leagueChronicle",
+        "i18n_params": {
+          "weekStart": "2026-08-01",
+          "resultCount": "2",
+          "totalGoals": "4",
+          "resultsData": "[{\"home\":\"North\",\"home_goals\":3,\"away\":\"South\",\"away_goals\":1},{\"home\":\"East\",\"home_goals\":0,\"away\":\"West\",\"away_goals\":0}]",
+          "unbeatenTeamsData": "[\"North\",\"South\",\"East\"]"
+        }
+      },
+      "expected": {
+        "headline": "Preseason Digest — Week of 2026-08-01",
+        "body": "The latest preseason digest is here. 2 friendly result(s) were played across the division this week, producing 4 goal(s).\n\nResults:\n  North 3 - 1 South\n  East 0 - 0 West\n\nNorth, South, and East remain unbeaten in preseason.",
+        "source": "League Chronicle"
+      }
+    },
+    {
+      "name": "a standings article lays out the table, reading both goal-difference spellings",
+      "kind": "article",
+      "input": {
+        "id": "news_standings_1",
+        "headline_key": "be.news.standings.headline0",
+        "body_key": "be.news.standings.body",
+        "source_key": "be.source.leagueChronicle",
+        "i18n_params": {
+          "matchday": "5",
+          "leader": "North",
+          "standingsData": "[{\"rank\":1,\"team\":\"North\",\"points\":15,\"goal_difference\":\"+8\"},{\"rank\":2,\"team\":\"South\",\"points\":\"12\",\"goalDifference\":\"+3\"},{\"rank\":3,\"team\":\"East\",\"points\":9,\"goal_difference\":\"-1\"}]"
+        }
+      },
+      "expected": {
+        "headline": "North Lead the Way After Matchday 5",
+        "body": "After Matchday 5, North sit at the top of the Premier Division table.\n\nStandings:\n  1. North — 15 pts (GD: +8)\n  2. South — 12 pts (GD: +3)\n  3. East — 9 pts (GD: -1)",
+        "source": "League Chronicle"
+      }
     }
   ]
 }

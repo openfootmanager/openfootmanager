@@ -906,10 +906,10 @@ mod info_news_tests {
     /// Given a roundup, whose results the game builds as structured data (`resultsData`) for the
     ///       screen to lay out
     /// When an agent reads the news
-    /// Then the data is in `details` for the agent to read, and the sentence neither carries the
-    ///      raw JSON nor a placeholder it could not fill
+    /// Then every result is a sentence line, and the data is not repeated in `details`: the
+    ///      sentence neither carries raw JSON nor a placeholder it could not fill
     #[test]
-    fn a_roundup_hands_its_structured_results_over_as_details_not_as_raw_json_in_the_text() {
+    fn a_roundup_lays_its_structured_results_out_as_sentences() {
         let news = vec![ofm_core::news::league_roundup_article(
             "league",
             3,
@@ -920,9 +920,14 @@ mod info_news_tests {
         let article = &recent_news(&news, "2026-02-15").articles[0];
 
         assert!(
-            article.details.contains_key("resultsData"),
-            "{:?}",
+            !article.details.contains_key("resultsData"),
+            "expanded data is repeated in details: {:?}",
             article.details
+        );
+        assert!(
+            article.body.contains("North 2 - 1 South"),
+            "the result line is missing: {}",
+            article.body
         );
         assert!(
             !article.body.contains("{{"),
@@ -934,16 +939,14 @@ mod info_news_tests {
             "raw JSON in the sentence: {}",
             article.body
         );
-        assert!(article.body.contains("North"), "{}", article.body);
     }
 
-    /// Given a roundup whose result lines name a club "{{United}} FC" (a mod's club name), with its
-    ///       structured results present so the body's own unfilled slots are dropped
+    /// Given a roundup whose result lines name a club "{{United}} FC" (a mod's club name)
     /// When an agent reads the news
-    /// Then the club's name stays as it was written: only the template's unfilled slots go, never
+    /// Then the club's name stays as it was written: only the template's slots are read, never
     ///      braces that came from a value
     #[test]
-    fn a_club_name_with_braces_survives_the_removal_of_unfilled_slots() {
+    fn a_club_name_with_braces_survives_the_expansion_of_structured_slots() {
         let news = vec![ofm_core::news::league_roundup_article(
             "league",
             3,
@@ -959,8 +962,8 @@ mod info_news_tests {
             article.body
         );
         assert!(
-            article.details.contains_key("resultsData"),
-            "{:?}",
+            !article.details.contains_key("resultsData"),
+            "expanded data is repeated in details: {:?}",
             article.details
         );
     }

@@ -313,6 +313,65 @@ const CASES: GoldenCase[] = [
     kind: "article",
     input: { id: "news_2", headline: "Plain headline", body: "Plain body.", source: "Wire" },
   },
+  {
+    name: "a roundup article lays out each result and names the biggest winner",
+    kind: "article",
+    input: {
+      id: "news_roundup_1",
+      headline_key: "be.news.roundup.headline0",
+      body_key: "be.news.roundup.body",
+      source_key: "be.source.leagueChronicle",
+      i18n_params: {
+        matchday: "5",
+        totalGoals: "3",
+        matchCount: "2",
+        biggestWinner: "North",
+        resultsData: JSON.stringify([
+          { home: "North", home_goals: 2, away: "South", away_goals: 1 },
+          { home: "East", homeGoals: 0, away: "West", awayGoals: 0 },
+        ]),
+      },
+    },
+  },
+  {
+    name: "a preseason digest lists the friendlies and the teams still unbeaten",
+    kind: "article",
+    input: {
+      id: "news_preseason_1",
+      headline_key: "be.news.preseasonDigest.headline",
+      body_key: "be.news.preseasonDigest.bodyWithResults",
+      source_key: "be.source.leagueChronicle",
+      i18n_params: {
+        weekStart: "2026-08-01",
+        resultCount: "2",
+        totalGoals: "4",
+        resultsData: JSON.stringify([
+          { home: "North", home_goals: 3, away: "South", away_goals: 1 },
+          { home: "East", home_goals: 0, away: "West", away_goals: 0 },
+        ]),
+        unbeatenTeamsData: JSON.stringify(["North", "South", "East"]),
+      },
+    },
+  },
+  {
+    name: "a standings article lays out the table, reading both goal-difference spellings",
+    kind: "article",
+    input: {
+      id: "news_standings_1",
+      headline_key: "be.news.standings.headline0",
+      body_key: "be.news.standings.body",
+      source_key: "be.source.leagueChronicle",
+      i18n_params: {
+        matchday: "5",
+        leader: "North",
+        standingsData: JSON.stringify([
+          { rank: 1, team: "North", points: 15, goal_difference: "+8" },
+          { rank: 2, team: "South", points: "12", goalDifference: "+3" },
+          { rank: 3, team: "East", points: 9, goal_difference: "-1" },
+        ]),
+      },
+    },
+  },
 ];
 
 function messageOf(input: GoldenMessage): MessageData {

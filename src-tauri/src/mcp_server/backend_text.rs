@@ -6,10 +6,11 @@
 //! module does the same in English (the only language MCP output is written in).
 //!
 //! `backendI18n.ts` is the reference. `src/utils/backendTextGolden.json` is the list of cases both
-//! resolvers are held to, so a change to one that the other does not follow fails CI. What is
-//! deliberately not ported: the params the frontend expands out of structured JSON (roundups,
-//! standings, scorers, press quotes), a division's or competition's display name, and country
-//! names. They stay as the params the backend sent, and the result says so in `details`.
+//! resolvers are held to, so a change to one that the other does not follow fails CI. Roundup
+//! results, the preseason digest's results and unbeaten list, and the standings table are expanded
+//! into sentences here too. Still deliberately not ported: the press-conference quotes, match
+//! scorers, transfer-roundup deals, a division's or competition's display name, and country names.
+//! They stay as the params the backend sent, and the result says so in `details`.
 
 use std::collections::{BTreeMap, HashMap};
 use std::sync::OnceLock;
@@ -69,7 +70,7 @@ pub fn resolve_error(key: &str, params: &HashMap<String, String>) -> Option<Stri
 
 pub fn resolve_message(message: &InboxMessage) -> ResolvedMessage {
     let params = resolve_params(&message.i18n_params);
-    let details = structured_details(&message.i18n_params);
+    let details = structured_details(&message.i18n_params, &[]);
     ResolvedMessage {
         subject: resolve(message.subject_key.as_deref(), &message.subject, &params),
         body: resolve_body(
@@ -94,8 +95,9 @@ pub fn resolve_message(message: &InboxMessage) -> ResolvedMessage {
 }
 
 pub fn resolve_article(article: &NewsArticle) -> ResolvedArticle {
-    let params = resolve_params(&article.i18n_params);
-    let details = structured_details(&article.i18n_params);
+    let mut params = resolve_params(&article.i18n_params);
+    let expanded = expand_article_params(article, &mut params);
+    let details = structured_details(&article.i18n_params, &expanded);
     ResolvedArticle {
         headline: resolve(article.headline_key.as_deref(), &article.headline, &params),
         body: resolve_body(
@@ -106,6 +108,228 @@ pub fn resolve_article(article: &NewsArticle) -> ResolvedArticle {
         ),
         source: resolve(article.source_key.as_deref(), &article.source, &params),
         details,
+    }
+}
+
+/// The structured result and table params the screens lay out for the reader: roundup results,
+/// the preseason digest's results and unbeaten list, and the standings table. Mirrors
+/// `normalizeRoundupParams`, `normalizePreseasonDigestParams` and `normalizeStandingsParams` in
+/// `backendI18n.ts`, down to abandoning a whole family when its JSON is malformed.
+fn expand_article_params(article: &NewsArticle, params: &mut Params) -> Vec<&'static str> {
+    match article.body_key.as_deref() {
+        Some("be.news.roundup.body") => expand_roundup_results(params),
+        Some(
+            "be.news.preseasonDigest.bodyNoResults" | "be.news.preseasonDigest.bodyWithResults",
+        ) => expand_preseason_digest(params),
+        Some("be.news.standings.body") => expand_standings(params),
+        _ => Vec::new(),
+    }
+}
+
+/// Each result as its sentence line, then the biggest winner's line when one is named. Returns the
+/// params this consumed, which the details no longer repeat.
+fn expand_roundup_results(params: &mut Params) -> Vec<&'static str> {
+    let mut consumed = Vec::new();
+
+    if let Some(data) = params.get("resultsData") {
+        match expand_results(data, "be.news.roundup.resultLine") {
+            Some(results) => {
+                params.insert("results".to_string(), results);
+                params.remove("resultsData");
+                consumed.push("resultsData");
+            }
+            // The screen leaves the whole roundup untouched rather than half-expanded.
+            None => return Vec::new(),
+        }
+    }
+
+    let winner = params
+        .get("biggestWinner")
+        .cloned()
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+    let line = if winner.is_empty() {
+        String::new()
+    } else {
+        resolve(
+            Some("be.news.roundup.biggestWinnerLine"),
+            &format!(" {winner} recorded the biggest win of the day."),
+            &Params::from([("biggestWinner".to_string(), winner)]),
+        )
+    };
+    params.insert("biggestWinnerLine".to_string(), line);
+    consumed
+}
+
+fn expand_preseason_digest(params: &mut Params) -> Vec<&'static str> {
+    let results = match params.get("resultsData") {
+        Some(data) => match expand_results(data, "be.news.preseasonDigest.resultLine") {
+            Some(results) => Some(results),
+            None => return Vec::new(),
+        },
+        None => None,
+    };
+    let unbeaten = match params.get("unbeatenTeamsData") {
+        Some(data) => match expand_unbeaten_teams(data) {
+            Some(line) => Some(line),
+            None => return Vec::new(),
+        },
+        None => None,
+    };
+
+    let mut consumed = Vec::new();
+    if let Some(results) = results {
+        params.insert("results".to_string(), results);
+        params.remove("resultsData");
+        consumed.push("resultsData");
+    }
+    if let Some(line) = unbeaten {
+        params.insert("unbeatenLine".to_string(), line);
+        params.remove("unbeatenTeamsData");
+        consumed.push("unbeatenTeamsData");
+    }
+    consumed
+}
+
+fn expand_standings(params: &mut Params) -> Vec<&'static str> {
+    let Some(data) = params.get("standingsData") else {
+        return Vec::new();
+    };
+    let Some(entries) = serde_json::from_str::<Value>(data)
+        .ok()
+        .and_then(|value| value.as_array().cloned())
+    else {
+        return Vec::new();
+    };
+
+    let standings = entries
+        .iter()
+        .map(|entry| {
+            let rank = json_text(entry.get("rank")).unwrap_or_default();
+            let team = json_text(entry.get("team")).unwrap_or_default();
+            let points = json_text(entry.get("points")).unwrap_or_default();
+            let goal_difference = json_text(entry.get("goal_difference"))
+                .or_else(|| json_text(entry.get("goalDifference")))
+                .unwrap_or_default();
+            resolve(
+                Some("be.news.standings.entry"),
+                &format!("  {rank}. {team} — {points} pts (GD: {goal_difference})"),
+                &Params::from([
+                    ("rank".to_string(), rank),
+                    ("team".to_string(), team),
+                    ("points".to_string(), points),
+                    ("goalDifference".to_string(), goal_difference),
+                ]),
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    params.insert("standings".to_string(), standings);
+    params.remove("standingsData");
+    vec!["standingsData"]
+}
+
+/// Each result as `  Home 2 - 1 Away`, reading the snake_case params the backend writes and the
+/// camelCase ones older articles carry. `None` when the JSON is malformed.
+fn expand_results(data: &str, line_key: &str) -> Option<String> {
+    let results = serde_json::from_str::<Value>(data).ok()?;
+    let results = results.as_array()?;
+    let lines = results
+        .iter()
+        .map(|result| {
+            let home = json_text(result.get("home")).unwrap_or_default();
+            let away = json_text(result.get("away")).unwrap_or_default();
+            let home_goals = json_text(result.get("home_goals"))
+                .or_else(|| json_text(result.get("homeGoals")))
+                .unwrap_or_default();
+            let away_goals = json_text(result.get("away_goals"))
+                .or_else(|| json_text(result.get("awayGoals")))
+                .unwrap_or_default();
+            resolve(
+                Some(line_key),
+                &format!("  {home} {home_goals} - {away_goals} {away}"),
+                &Params::from([
+                    ("home".to_string(), home),
+                    ("homeGoals".to_string(), home_goals),
+                    ("away".to_string(), away),
+                    ("awayGoals".to_string(), away_goals),
+                ]),
+            )
+        })
+        .collect::<Vec<_>>();
+    Some(lines.join("\n"))
+}
+
+/// The teams still unbeaten, as a sentence: none says nothing, one and two have their own line, and
+/// three or more read as an English list ("North, South, and East").
+fn expand_unbeaten_teams(data: &str) -> Option<String> {
+    let teams = serde_json::from_str::<Value>(data).ok()?;
+    let teams = teams
+        .as_array()?
+        .iter()
+        .map(|team| json_text(Some(team)).unwrap_or_default())
+        .collect::<Vec<_>>();
+    Some(match teams.len() {
+        0 => String::new(),
+        1 => resolve(
+            Some("be.news.preseasonDigest.unbeatenLine.one"),
+            &format!("\n\n{} remain unbeaten in preseason.", teams[0]),
+            &Params::from([("team".to_string(), teams[0].clone())]),
+        ),
+        2 => resolve(
+            Some("be.news.preseasonDigest.unbeatenLine.two"),
+            &format!(
+                "\n\n{} and {} remain unbeaten in preseason.",
+                teams[0], teams[1]
+            ),
+            &Params::from([
+                ("first".to_string(), teams[0].clone()),
+                ("second".to_string(), teams[1].clone()),
+            ]),
+        ),
+        _ => {
+            let list = format_team_list(&teams);
+            resolve(
+                Some("be.news.preseasonDigest.unbeatenLine.multiple"),
+                &format!("\n\n{list} remain unbeaten in preseason."),
+                &Params::from([
+                    ("teams".to_string(), list),
+                    ("count".to_string(), teams.len().to_string()),
+                ]),
+            )
+        }
+    })
+}
+
+/// An English list of three or more names, as `Intl.ListFormat` writes it in English: commas and an
+/// Oxford comma before the last.
+fn format_team_list(teams: &[String]) -> String {
+    let Some((last, rest)) = teams.split_last() else {
+        return String::new();
+    };
+    if rest.is_empty() {
+        return last.clone();
+    }
+    format!("{}, and {last}", rest.join(", "))
+}
+
+/// A JSON value as the string i18next would interpolate: a number without its float tail, a string
+/// as itself, null absent.
+fn json_text(value: Option<&Value>) -> Option<String> {
+    match value? {
+        Value::String(text) => Some(text.clone()),
+        Value::Number(number) => Some(
+            number
+                .as_i64()
+                .map(|whole| whole.to_string())
+                .or_else(|| number.as_u64().map(|whole| whole.to_string()))
+                .unwrap_or_else(|| number.to_string()),
+        ),
+        Value::Bool(flag) => Some(flag.to_string()),
+        Value::Null => None,
+        other => Some(other.to_string()),
     }
 }
 
@@ -484,13 +708,14 @@ fn grouped(magnitude: u64) -> String {
 
 // ─── What the sentence cannot say ───────────────────────────────────────────
 
-/// The params the backend sends as structured JSON (`resultsData`, `standingsData`, ...), which
-/// the screen lays out itself and this module does not. Handed over whole, so the agent reads
-/// them as data and the sentence does not carry raw JSON.
-fn structured_details(params: &Params) -> BTreeMap<String, Value> {
+/// The params the backend sends as structured JSON (`standingsData`, `scorersData`, ...) that this
+/// module does not expand. Handed over whole, so the agent reads them as data and the sentence does
+/// not carry raw JSON. `expanded` names the families already written into the sentence, which are
+/// not repeated here.
+fn structured_details(params: &Params, expanded: &[&str]) -> BTreeMap<String, Value> {
     params
         .iter()
-        .filter(|(name, _)| name.ends_with("Data"))
+        .filter(|(name, _)| name.ends_with("Data") && !expanded.contains(&name.as_str()))
         .map(|(name, text)| {
             let value =
                 serde_json::from_str::<Value>(text).unwrap_or_else(|_| Value::String(text.clone()));
