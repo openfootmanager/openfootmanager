@@ -540,6 +540,39 @@ describe("Dashboard", () => {
   });
 
   /**
+   * Given a save id that could not be read at first, and a filter chosen after that
+   * When a later refresh reads the same save id
+   * Then the filter stays: recovering an id is not a change of save.
+   */
+  it("keeps filters chosen before the save id becomes readable", async () => {
+    let saveIdRequests = 0;
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_active_game") return gameState;
+      if (command === "get_finance_snapshot") return { snapshot: backendFinanceSnapshot };
+      if (command === "get_active_save_id") {
+        saveIdRequests += 1;
+        if (saveIdRequests === 1) throw new Error("save id unavailable");
+        return "save-1";
+      }
+      return null;
+    });
+
+    render(<Dashboard initialTab="Squad" />);
+    await act(async () => {});
+
+    fireEvent.click(await screen.findByRole("button", { name: "set-filter" }));
+    expect(screen.getByText("filters xi")).toBeInTheDocument();
+
+    const gameStateChangedHandler = registeredEventHandlers.get("game-state-changed");
+    expect(gameStateChangedHandler).toBeTypeOf("function");
+    await act(async () => {
+      await gameStateChangedHandler?.();
+    });
+
+    expect(screen.getByText("filters xi")).toBeInTheDocument();
+  });
+
+  /**
    * Given Squad open, a filter chosen, and a save id that was read
    * When a same-save refresh cannot read the save id
    * Then the filters stay: an unreadable id is not a different career.

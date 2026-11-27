@@ -288,10 +288,16 @@ export default function Dashboard({
   }, [gameState, activeSaveId]);
 
   // Filters are kept across a refresh whose save id could not be read: only a new save id means a
-  // different career, so only that clears them.
+  // different career, so only that clears them. The first readable id only records the save, so a
+  // lookup that failed at first and later succeeds does not discard filters chosen meanwhile.
   const lastSaveIdForFilters = useRef<string | null>(null);
   useEffect(() => {
-    if (activeSaveId === null || lastSaveIdForFilters.current === activeSaveId) return;
+    if (activeSaveId === null) return;
+    if (lastSaveIdForFilters.current === null) {
+      lastSaveIdForFilters.current = activeSaveId;
+      return;
+    }
+    if (lastSaveIdForFilters.current === activeSaveId) return;
     lastSaveIdForFilters.current = activeSaveId;
     setSquadListSortState(DEFAULT_SQUAD_LIST_SORT_STATE);
     setSquadListFilterState(DEFAULT_SQUAD_LIST_FILTER_STATE);
