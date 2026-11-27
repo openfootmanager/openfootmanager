@@ -239,6 +239,25 @@ export default function MatchLive({
     if (panel) panel.scrollTop = panel.scrollHeight;
   }, []);
 
+  // A panel that grows until the whole history fits is showing the latest play even though no
+  // scroll event fired: recheck the bottom whenever its box changes.
+  useEffect(() => {
+    if (activePanel !== "events") return;
+    const panel = matchPanelRef.current;
+    if (!panel || typeof ResizeObserver === "undefined") return;
+    const recheckBottom = () => {
+      const bottomTolerancePx = 1;
+      const following =
+        panel.scrollHeight - panel.clientHeight - panel.scrollTop <= bottomTolerancePx;
+      isFollowingCommentaryRef.current = following;
+      setIsFollowingCommentary(following);
+    };
+    const observer = new ResizeObserver(recheckBottom);
+    observer.observe(panel);
+    if (panel.firstElementChild) observer.observe(panel.firstElementChild);
+    return () => observer.disconnect();
+  }, [activePanel]);
+
   // Only follow new plays while the reader is at the bottom of the history.
   useEffect(() => {
     if (matchPanelRef.current && isFollowingCommentaryRef.current) {

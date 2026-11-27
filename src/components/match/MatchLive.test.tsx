@@ -311,6 +311,40 @@ describe("MatchLive", () => {
   });
 
   /**
+   * Given the reader paused following by scrolling up
+   * When the panel grows until the whole history fits
+   * Then the latest play is in view again, so the Back to live action goes away.
+   */
+  it("hides Back to live when the panel grows to fit the history", () => {
+    const original = window.ResizeObserver;
+    let notify: (() => void) | null = null;
+    class Observer {
+      constructor(callback: ResizeObserverCallback) {
+        notify = () => callback([], this as unknown as ResizeObserver);
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    window.ResizeObserver = Observer as unknown as typeof ResizeObserver;
+
+    try {
+      renderLive();
+      const panel = screen.getByRole("region", { name: "match.events" });
+      mockScrollGeometry(panel, { contentHeight: 600, viewportHeight: 240, scrollTop: 120 });
+      fireEvent.scroll(panel);
+      expect(screen.getByRole("button", { name: "match.backToLive" })).toBeInTheDocument();
+
+      Object.defineProperty(panel, "scrollHeight", { configurable: true, value: 240 });
+      act(() => notify?.());
+
+      expect(screen.queryByRole("button", { name: "match.backToLive" })).toBeNull();
+    } finally {
+      window.ResizeObserver = original;
+    }
+  });
+
+  /**
    * Given the user is viewing statistics with commentary already available
    * When they return to commentary without another event arriving
    * Then the commentary panel follows the latest play.
