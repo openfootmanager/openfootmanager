@@ -243,15 +243,8 @@ fn directory_league_metadata(league: Option<&League>) -> LeagueKey {
                 division
                     .map(|identity| identity.tier)
                     .filter(|tier| *tier > 0),
-                division.and_then(|identity| match identity.phase {
-                    domain::competition_calendar::SeasonPhase::Annual => None,
-                    domain::competition_calendar::SeasonPhase::Opening => {
-                        Some("opening".to_string())
-                    }
-                    domain::competition_calendar::SeasonPhase::Closing => {
-                        Some("closing".to_string())
-                    }
-                }),
+                division
+                    .and_then(|identity| identity.phase.division_phase_name().map(str::to_string)),
             )
         })
         .unwrap_or_else(|| {
