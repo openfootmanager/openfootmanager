@@ -2471,19 +2471,16 @@ fn mid_table_gets_appropriate_message() {
             .push(make_team(&format!("team{i}"), &format!("Team{i} FC")));
     }
     if let Some(league) = &mut game.league {
+        // Wins give the points; the user's six wins sit fifth, between five-wins and seven-wins
+        // clubs, so the order is real rather than the insertion order.
         let mut standings = Vec::new();
-        for (index, i) in (2..=10).enumerate() {
-            standings.push(make_standing(
-                &format!("team{i}"),
-                27 - index as u32 * 3,
-                0,
-                0,
-                20,
-                10,
-            ));
+        for (i, wins) in [(2, 10), (3, 9), (4, 8), (5, 7)] {
+            standings.push(make_standing(&format!("team{i}"), wins, 0, 0, 20, 10));
         }
-        // The user finishes fifth of ten, between team5 and team6 on points.
-        standings.insert(4, make_standing("team1", 16, 0, 0, 15, 12));
+        standings.push(make_standing("team1", 6, 0, 0, 18, 12));
+        for (i, wins) in [(6, 5), (7, 4), (8, 3), (9, 2), (10, 1)] {
+            standings.push(make_standing(&format!("team{i}"), wins, 0, 0, 20, 10));
+        }
         league.standings = standings;
     }
 
