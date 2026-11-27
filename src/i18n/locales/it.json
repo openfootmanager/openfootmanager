@@ -2255,6 +2255,7 @@
   },
   "match": {
     "live": "Diretta",
+    "backToLive": "Torna al live",
     "paused": "In pausa",
     "events": "Eventi",
     "stats": "Statistiche",

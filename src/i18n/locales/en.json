@@ -2236,6 +2236,7 @@
   },
   "match": {
     "live": "Live",
+    "backToLive": "Back to live",
     "paused": "Paused",
     "events": "Events",
     "stats": "Stats",

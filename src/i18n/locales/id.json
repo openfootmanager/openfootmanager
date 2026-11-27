@@ -2236,6 +2236,7 @@
   },
   "match": {
     "live": "Langsung",
+    "backToLive": "Kembali ke siaran langsung",
     "paused": "Dijeda",
     "events": "Peristiwa",
     "stats": "Statistik",

@@ -2236,6 +2236,7 @@
   },
   "match": {
     "live": "直播中",
+    "backToLive": "回到直播",
     "paused": "已暂停",
     "events": "事件",
     "stats": "数据",

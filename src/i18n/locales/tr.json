@@ -2236,6 +2236,7 @@
   },
   "match": {
     "live": "Canlı",
+    "backToLive": "Canlıya dön",
     "paused": "Duraklatıldı",
     "events": "Olaylar",
     "stats": "İstatistikler",
