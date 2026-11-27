@@ -3975,9 +3975,11 @@
       },
       "seasonPreview": {
         "headline0": "Sezon Önizlemesi: {{teamCount}} Takım Zafer İçin Mücadele Edecek",
-        "headline1": "{{competition}} Sezonu Başlamak Üzere",
+        "headline1": "Premier Lig Sezonu Başlamak Üzere",
         "headline2": "{{favourite}} Şampiyonluğa Ulaşabilecek mi? Sezon Önizlemesi",
-        "body": "{{competition}}, şampiyonluk için yarışacak {{teamCount}} takımla başlamak üzere.\n\nSezon öncesi tahminler {{favourite}} takımını erken favori gösteriyor, ancak {{darkHorse}} bu sezonun izlenmesi gereken sürpriz takımı olabilir.\n\nBazı kulüplerde yeni menajerlerin dümene geçmesiyle bu sezon, yakın geçmişin en rekabetçi sezonlarından biri olmayı vadediyor. Şampiyonluk yarışı kızıştıkça her puan önem taşıyacak.\n\nTakımlar: {{teamList}}"
+        "headline1WithDivision": "{{competition}} Sezonu Başlamak Üzere",
+        "body": "Premier Lig, şampiyonluk için yarışacak {{teamCount}} takımla başlamak üzere.\n\nSezon öncesi tahminler {{favourite}} takımını erken favori gösteriyor, ancak {{darkHorse}} bu sezonun izlenmesi gereken sürpriz takımı olabilir.\n\nBazı kulüplerde yeni menajerlerin dümene geçmesiyle bu sezon, yakın geçmişin en rekabetçi sezonlarından biri olmayı vadediyor. Şampiyonluk yarışı kızıştıkça her puan önem taşıyacak.\n\nTakımlar: {{teamList}}",
+        "bodyWithDivision": "{{competition}}, şampiyonluk için yarışacak {{teamCount}} takımla başlamak üzere.\n\nSezon öncesi tahminler {{favourite}} takımını erken favori gösteriyor, ancak {{darkHorse}} bu sezonun izlenmesi gereken sürpriz takımı olabilir.\n\nBazı kulüplerde yeni menajerlerin dümene geçmesiyle bu sezon, yakın geçmişin en rekabetçi sezonlarından biri olmayı vadediyor. Şampiyonluk yarışı kızıştıkça her puan önem taşıyacak.\n\nTakımlar: {{teamList}}"
       },
       "managerialChange": {
         "headline": "{{team}}, {{manager}} ile yolları ayırdı",

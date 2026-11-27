@@ -3975,9 +3975,11 @@
       },
       "seasonPreview": {
         "headline0": "赛季前瞻:{{teamCount}}支球队角逐荣耀",
-        "headline1": "{{competition}}新赛季即将开战",
+        "headline1": "超级联赛新赛季即将开战",
         "headline2": "{{favourite}}能否加冕?赛季前瞻",
-        "body": "{{competition}}即将揭幕,{{teamCount}}支球队将为冠军展开争夺。\n\n季前预测将{{favourite}}视为早期夺冠热门,但{{darkHorse}}可能成为本赛季值得关注的黑马。\n\n部分俱乐部迎来了新任经理,本赛季有望成为近年来竞争最激烈的一届。冠军争夺战白热化之际,每一分都至关重要。\n\n球队:{{teamList}}"
+        "headline1WithDivision": "{{competition}}新赛季即将开战",
+        "body": "超级联赛即将揭幕,{{teamCount}}支球队将为冠军展开争夺。\n\n季前预测将{{favourite}}视为早期夺冠热门,但{{darkHorse}}可能成为本赛季值得关注的黑马。\n\n部分俱乐部迎来了新任经理,本赛季有望成为近年来竞争最激烈的一届。冠军争夺战白热化之际,每一分都至关重要。\n\n球队:{{teamList}}",
+        "bodyWithDivision": "{{competition}}即将揭幕,{{teamCount}}支球队将为冠军展开争夺。\n\n季前预测将{{favourite}}视为早期夺冠热门,但{{darkHorse}}可能成为本赛季值得关注的黑马。\n\n部分俱乐部迎来了新任经理,本赛季有望成为近年来竞争最激烈的一届。冠军争夺战白热化之际,每一分都至关重要。\n\n球队:{{teamList}}"
       },
       "managerialChange": {
         "headline": "{{team}}解雇{{manager}}",

@@ -3975,9 +3975,11 @@
       },
       "seasonPreview": {
         "headline0": "Avant-saison : {{teamCount}} équipes en lice pour le titre",
-        "headline1": "La saison de {{competition}} va commencer",
+        "headline1": "La saison de Première Division va commencer",
         "headline2": "{{favourite}} peut-il décrocher le titre ? Avant-saison",
-        "body": "{{competition}} s'apprête à démarrer avec {{teamCount}} équipes en lice pour le titre.\n\nLes pronostics d'avant-saison voient {{favourite}} comme le grand favori, mais {{darkHorse}} pourrait être la surprise de la campagne.\n\nAvec de nouveaux entraîneurs à certains clubs, cette saison promet d'être l'une des plus compétitives ces dernières années. Chaque point comptera dans la course au titre.\n\nÉquipes : {{teamList}}"
+        "headline1WithDivision": "La saison de {{competition}} va commencer",
+        "body": "La Première Division s'apprête à démarrer avec {{teamCount}} équipes en lice pour le titre.\n\nLes pronostics d'avant-saison voient {{favourite}} comme le grand favori, mais {{darkHorse}} pourrait être la surprise de la campagne.\n\nAvec de nouveaux entraîneurs à certains clubs, cette saison promet d'être l'une des plus compétitives ces dernières années. Chaque point comptera dans la course au titre.\n\nÉquipes : {{teamList}}",
+        "bodyWithDivision": "{{competition}} s'apprête à démarrer avec {{teamCount}} équipes en lice pour le titre.\n\nLes pronostics d'avant-saison voient {{favourite}} comme le grand favori, mais {{darkHorse}} pourrait être la surprise de la campagne.\n\nAvec de nouveaux entraîneurs à certains clubs, cette saison promet d'être l'une des plus compétitives ces dernières années. Chaque point comptera dans la course au titre.\n\nÉquipes : {{teamList}}"
       },
       "managerialChange": {
         "headline": "{{team}} limoge {{manager}}",

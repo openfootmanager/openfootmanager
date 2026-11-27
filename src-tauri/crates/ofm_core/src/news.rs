@@ -366,6 +366,22 @@ pub fn season_preview_article(
         }
     }
 
+    // A preview written before the division travelled with the article keeps the old text on the
+    // old keys, so an old save does not show a placeholder it has no value for.
+    let (headline_key, body_key) = if competition.is_some() {
+        let headline_key = if headline_idx == 1 {
+            "be.news.seasonPreview.headline1WithDivision".to_string()
+        } else {
+            format!("be.news.seasonPreview.headline{}", headline_idx)
+        };
+        (headline_key, "be.news.seasonPreview.bodyWithDivision")
+    } else {
+        (
+            format!("be.news.seasonPreview.headline{}", headline_idx),
+            "be.news.seasonPreview.body",
+        )
+    };
+
     NewsArticle::new(
         "season_preview".to_string(),
         String::new(),
@@ -375,8 +391,8 @@ pub fn season_preview_article(
         NewsCategory::SeasonPreview,
     )
     .with_i18n(
-        &format!("be.news.seasonPreview.headline{}", headline_idx),
-        "be.news.seasonPreview.body",
+        &headline_key,
+        body_key,
         "be.source.footballHerald",
         article_params,
     )
@@ -1119,6 +1135,10 @@ mod tests {
             article.body_key.as_deref(),
             Some("be.news.seasonPreview.body")
         );
+        assert!(
+            !article.i18n_params.contains_key("competition"),
+            "a preview with no division names none"
+        );
         assert_eq!(article.i18n_params.get("teamCount"), Some(&"3".to_string()));
         assert_eq!(
             article.i18n_params.get("teamList"),
@@ -1176,6 +1196,10 @@ mod tests {
         assert_eq!(
             article.i18n_params.get("competitionSeason"),
             Some(&"2026".to_string())
+        );
+        assert_eq!(
+            article.body_key.as_deref(),
+            Some("be.news.seasonPreview.bodyWithDivision")
         );
     }
 
