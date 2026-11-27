@@ -15,6 +15,20 @@ pub enum SeasonPhase {
     Closing,
 }
 
+impl SeasonPhase {
+    /// The division phase a reader sees: no phase for a single annual table, otherwise the same
+    /// spelling the calendar serializes (`"opening"` / `"closing"`). The stats screen, the team
+    /// directory and the end-of-season notice all name the phase through here, so the spellings
+    /// have one home rather than three hand-written matches.
+    pub fn division_phase_name(self) -> Option<&'static str> {
+        match self {
+            Self::Annual => None,
+            Self::Opening => Some("opening"),
+            Self::Closing => Some("closing"),
+        }
+    }
+}
+
 /// Explicit division identity, independent of current participants or display names.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
 #[serde(rename_all = "camelCase")]
@@ -81,8 +95,23 @@ pub struct CalendarMetadata {
 
 #[cfg(test)]
 mod tests {
-    use super::EditionBasis;
+    use super::{EditionBasis, SeasonPhase};
     use serde_json::json;
+
+    /// Given each season phase
+    /// When it is named for a division
+    /// Then an annual table has no phase, and the split phases read exactly as the calendar
+    ///      serializes them, so the two spellings cannot drift apart.
+    #[test]
+    fn a_division_phase_reads_as_its_serialized_spelling() {
+        assert_eq!(SeasonPhase::Annual.division_phase_name(), None);
+        for phase in [SeasonPhase::Opening, SeasonPhase::Closing] {
+            let serialized: String =
+                serde_json::from_value(serde_json::to_value(phase).expect("a phase serializes"))
+                    .expect("a phase serializes to a string");
+            assert_eq!(phase.division_phase_name(), Some(serialized.as_str()));
+        }
+    }
 
     /// Given tip JSON, when loaded and saved, then the old counter gets its precise name.
     #[test]

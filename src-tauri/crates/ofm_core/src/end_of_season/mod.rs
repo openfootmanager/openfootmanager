@@ -832,11 +832,7 @@ fn notify_user_division_change(
         .calendar
         .as_ref()
         .and_then(|calendar| calendar.season.division.as_ref())
-        .and_then(|division| match division.phase {
-            domain::competition_calendar::SeasonPhase::Annual => None,
-            domain::competition_calendar::SeasonPhase::Opening => Some("opening"),
-            domain::competition_calendar::SeasonPhase::Closing => Some("closing"),
-        });
+        .and_then(|division| division.phase.division_phase_name());
     // The renewed edition's own label: a delayed edition renews to the calendar year, which is not
     // always last season plus one.
     let renewed_season = new_division.season;
