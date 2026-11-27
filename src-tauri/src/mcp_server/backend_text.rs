@@ -8,10 +8,11 @@
 //! `backendI18n.ts` is the reference. `src/utils/backendTextGolden.json` is the list of cases both
 //! resolvers are held to, so a change to one that the other does not follow fails CI. A news
 //! article's structured params (roundups, standings, scorers, press quotes, deals) are expanded
-//! into the lines of its body in [`news_params`]. What is deliberately not ported: a division's or
-//! competition's display name and country names. They stay as the params the backend sent, and the
-//! result says so in `details`.
+//! into the lines of its body in [`news_params`], and a division's or competition's display name is
+//! built in [`competition_name`] for promotion/relegation notices and competition match reports.
+//! Country names used as their own params are still not ported; they stay as the backend sent them.
 
+mod competition_name;
 mod news_params;
 
 use std::collections::{BTreeMap, HashMap};
@@ -71,7 +72,11 @@ pub fn resolve_error(key: &str, params: &HashMap<String, String>) -> Option<Stri
 }
 
 pub fn resolve_message(message: &InboxMessage) -> ResolvedMessage {
-    let params = resolve_params(&message.i18n_params);
+    // A promotion or relegation names its division from the metadata the backend sent, then every
+    // param value is resolved, as the screen does.
+    let mut normalized = message.i18n_params.clone();
+    competition_name::apply_message(message, &mut normalized);
+    let params = resolve_params(&normalized);
     let details = structured_details(&message.i18n_params);
     ResolvedMessage {
         subject: resolve(message.subject_key.as_deref(), &message.subject, &params),
@@ -97,8 +102,11 @@ pub fn resolve_message(message: &InboxMessage) -> ResolvedMessage {
 }
 
 pub fn resolve_article(article: &NewsArticle) -> ResolvedArticle {
-    // The screen expands the structured params first, then resolves every param value.
-    let params = resolve_params(&news_params::expanded_params(article));
+    // The screen expands the structured params first, then resolves every param value; a
+    // competition match report also names its competition from the metadata it carries.
+    let mut expanded = news_params::expanded_params(article);
+    competition_name::apply_article(article, &mut expanded);
+    let params = resolve_params(&expanded);
     let details = structured_details(&article.i18n_params);
     ResolvedArticle {
         headline: resolve(article.headline_key.as_deref(), &article.headline, &params),

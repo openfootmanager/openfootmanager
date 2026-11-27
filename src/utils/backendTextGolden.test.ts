@@ -842,6 +842,64 @@ const CASES: GoldenCase[] = [
       },
     },
   },
+  // Competition display names (#1388): the notice/report carries the name key and the metadata
+  // the screen builds the name from.
+  {
+    name: "a promotion names the second-tier division it moved to",
+    kind: "message",
+    input: {
+      id: "promotion_1",
+      subject_key: "be.msg.promotion.subject",
+      body_key: "be.msg.promotion.body",
+      i18n_params: {
+        division: "Germany Division 2",
+        divisionKey: "tournaments.competitions.tierDivision",
+        divisionCountry: "DE",
+        divisionSeason: "2032",
+        divisionTier: "2",
+        divisionPhase: "opening",
+        season: "2032",
+      },
+    },
+  },
+  {
+    name: "a relegation keeps a generic division's stored name when it has no tier",
+    kind: "message",
+    input: {
+      id: "relegation_1",
+      subject_key: "be.msg.relegation.subject",
+      body_key: "be.msg.relegation.body",
+      i18n_params: {
+        division: "Germany Division 3",
+        divisionKey: "tournaments.competitions.tierDivision",
+        divisionCountry: "DE",
+        divisionPhase: "opening",
+        season: "2032",
+      },
+    },
+  },
+  {
+    name: "a competition match report names its competition from the stored key",
+    kind: "article",
+    input: {
+      id: "news_report_competition_1",
+      headline_key: "be.news.matchReport.reportCompetition.title",
+      body_key: "be.news.matchReport.reportCompetition.body",
+      source_key: "be.source.leagueChronicle",
+      i18n_params: {
+        home: "North",
+        away: "South",
+        homeGoals: "2",
+        awayGoals: "1",
+        competition: "Germany Cup",
+        competitionKey: "tournaments.competitions.secondDivision",
+        competitionCountry: "DE",
+        competitionSeason: "2032",
+        scorersSection: "",
+        scorers: "",
+      },
+    },
+  },
 ];
 
 function messageOf(input: GoldenMessage): MessageData {
