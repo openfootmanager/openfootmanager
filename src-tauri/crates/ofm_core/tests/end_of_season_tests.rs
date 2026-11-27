@@ -2465,25 +2465,41 @@ fn champion_gets_congratulatory_message() {
 #[test]
 fn mid_table_gets_appropriate_message() {
     let mut game = make_completed_season_game();
-    // Make a 4-team league where team1 finishes 3rd (mid-table for total_teams=4)
-    let team3 = make_team("team3", "Third FC");
-    let team4 = make_team("team4", "Fourth FC");
-    game.teams.push(team3);
-    game.teams.push(team4);
-
+    // Ten clubs, the user fifth: past the top four but still in the upper half.
+    for i in 3..=10 {
+        game.teams
+            .push(make_team(&format!("team{i}"), &format!("Team{i} FC")));
+    }
     if let Some(league) = &mut game.league {
-        league.standings = vec![
-            make_standing("team2", 6, 0, 0, 12, 2),
-            make_standing("team3", 4, 0, 2, 8, 5),
-            make_standing("team1", 2, 0, 4, 4, 8), // user team 3rd of 4
-            make_standing("team4", 0, 0, 6, 2, 12),
-        ];
+        let mut standings = Vec::new();
+        for (index, i) in (2..=10).enumerate() {
+            standings.push(make_standing(
+                &format!("team{i}"),
+                27 - index as u32 * 3,
+                0,
+                0,
+                20,
+                10,
+            ));
+        }
+        // The user finishes fifth of ten, between team5 and team6 on points.
+        standings.insert(4, make_standing("team1", 16, 0, 0, 15, 12));
+        league.standings = standings;
     }
 
     let summary = process_end_of_season(&mut game);
-    // 3rd out of 4 → user_position=3, total_teams=4, 3 <= 4/2=2 is false, so it's "below mid"
-    // Actually 3 <= 4/2=2 → false → goes to else branch (disappointing)
-    assert_eq!(summary.user_position, 3);
+    assert_eq!(summary.user_position, 5);
+
+    let msg = game
+        .messages
+        .iter()
+        .find(|m| m.id == "season_end_1")
+        .expect("the board sends its season review");
+    assert_eq!(
+        msg.body_key.as_deref(),
+        Some("be.msg.seasonReview.body.midTable"),
+        "fifth of ten should use the midTable body key"
+    );
 }
 
 #[test]

@@ -55,6 +55,15 @@ fn advancing_a_complete_season_rolls_it_over_and_returns_the_summary() {
         regenerated.standings.iter().all(|row| row.played == 0),
         "and starts the new season on a fresh table"
     );
+    let clubs: Vec<&str> = regenerated
+        .standings
+        .iter()
+        .map(|row| row.team_id.as_str())
+        .collect();
+    assert!(
+        clubs.contains(&"team1") && clubs.contains(&"team2"),
+        "both clubs stay in the fresh table: {clubs:?}"
+    );
     assert!(
         game.manager.team_id.is_some(),
         "a manager with a healthy board keeps the job"

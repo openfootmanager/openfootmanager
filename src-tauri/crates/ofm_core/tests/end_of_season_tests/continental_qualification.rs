@@ -10,13 +10,25 @@ fn continental_fields_requalify_per_region_from_standings_and_cup_winners() {
         .iter()
         .enumerate()
     {
-        teams.push(make_club(id, "ES", 900 - rank as u32 * 50));
+        // es-f out-ranks the cup winner es-e on reputation, so a fifth slot filled by reputation
+        // rather than by the cup berth would pick es-f and fail the assertions below.
+        let reputation = if *id == "es-f" {
+            725
+        } else {
+            900 - rank as u32 * 50
+        };
+        teams.push(make_club(id, "ES", reputation));
     }
     for (rank, id) in ["br-a", "br-b", "br-c", "br-d", "br-e", "br-f"]
         .iter()
         .enumerate()
     {
-        teams.push(make_club(id, "BR", 900 - rank as u32 * 50));
+        let reputation = if *id == "br-f" {
+            725
+        } else {
+            900 - rank as u32 * 50
+        };
+        teams.push(make_club(id, "BR", reputation));
     }
 
     let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 5, 20, 12, 0, 0).unwrap());
