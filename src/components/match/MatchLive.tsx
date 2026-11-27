@@ -15,7 +15,7 @@ import {
 } from "./types";
 import MatchEventSideBadge from "./MatchEventSideBadge";
 import { getEventDisplay, getPlayerName, makeTeamFallback, phaseLabel } from "./helpers";
-import { TeamLogo } from "../ui";
+import { TeamLogo, Button } from "../ui";
 import { useSettingsStore } from "../../store/settingsStore";
 import { EventFeed, MatchStats, Lineups } from "./MatchPanels";
 import MatchScreenLayout from "./MatchScreenLayout";
@@ -86,6 +86,9 @@ export default function MatchLive({
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const matchPanelRef = useRef<HTMLElement>(null);
   const isFollowingCommentaryRef = useRef(true);
+  // Mirrors the ref for rendering: the "Back to live" action shows while the reader is away from
+  // the latest play.
+  const [isFollowingCommentary, setIsFollowingCommentary] = useState(true);
   // Track phases we've already signaled to avoid double-firing
   const signaledRef = useRef<Set<string>>(new Set());
   // Set when a step reaches half time, extra-time half time, the shootout or the end: the screen
@@ -222,10 +225,19 @@ export default function MatchLive({
 
   useEffect(() => {
     isFollowingCommentaryRef.current = activePanel === "events";
+    setIsFollowingCommentary(activePanel === "events");
     if (activePanel !== "events" && matchPanelRef.current) {
       matchPanelRef.current.scrollTop = 0;
     }
   }, [activePanel]);
+
+  // Return to the latest play and resume following it.
+  const backToLive = useCallback(() => {
+    isFollowingCommentaryRef.current = true;
+    setIsFollowingCommentary(true);
+    const panel = matchPanelRef.current;
+    if (panel) panel.scrollTop = panel.scrollHeight;
+  }, []);
 
   // Only follow new plays while the reader is at the bottom of the history.
   useEffect(() => {
@@ -391,7 +403,7 @@ export default function MatchLive({
       {/* Main Content */}
       <div className="min-h-0 flex-1 flex overflow-hidden">
         {/* Left Panel: Event Feed + Stats */}
-        <div className="min-h-0 min-w-0 flex-1 flex flex-col">
+        <div className="min-h-0 min-w-0 flex-1 flex flex-col relative">
           <div className="shrink-0 flex bg-white dark:bg-navy-800 border-b border-gray-200 dark:border-navy-700 transition-colors duration-300">
             {[
               {
@@ -433,8 +445,10 @@ export default function MatchLive({
               const panel = event.currentTarget;
               // scrollTop can be fractional while the height measurements are rounded.
               const bottomTolerancePx = 1;
-              isFollowingCommentaryRef.current =
+              const following =
                 panel.scrollHeight - panel.clientHeight - panel.scrollTop <= bottomTolerancePx;
+              isFollowingCommentaryRef.current = following;
+              setIsFollowingCommentary(following);
             }}
             aria-label={t(`match.${activePanel}`)}
             // biome-ignore lint/a11y/noNoninteractiveTabindex: the scrollable history needs a tab stop for keyboard scrolling in WebKit
@@ -451,6 +465,14 @@ export default function MatchLive({
             {activePanel === "stats" && <MatchStats snapshot={snapshot} />}
             {activePanel === "lineups" && <Lineups snapshot={snapshot} />}
           </section>
+
+          {activePanel === "events" && !isFollowingCommentary ? (
+            <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 flex justify-center">
+              <Button size="sm" className="pointer-events-auto shadow-lg" onClick={backToLive}>
+                {t("match.backToLive")}
+              </Button>
+            </div>
+          ) : null}
         </div>
 
         {/* Right Panel: Controls */}

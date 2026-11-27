@@ -2236,6 +2236,7 @@
   },
   "match": {
     "live": "Ao Vivo",
+    "backToLive": "Voltar ao direto",
     "paused": "Pausado",
     "events": "Eventos",
     "stats": "Estatísticas",

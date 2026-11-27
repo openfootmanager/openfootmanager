@@ -271,6 +271,46 @@ describe("MatchLive", () => {
   });
 
   /**
+   * Given the reader has scrolled up to review earlier commentary
+   * When they use the Back to live action
+   * Then the history returns to the latest play, the action goes away, and new plays follow again.
+   */
+  it("offers Back to live while reading older commentary and resumes following", () => {
+    const { rerenderEvents } = renderLive();
+    const panel = screen.getByRole("region", { name: "match.events" });
+
+    mockScrollGeometry(panel, { contentHeight: 600, viewportHeight: 240, scrollTop: 120 });
+    fireEvent.scroll(panel);
+
+    const back = screen.getByRole("button", { name: "match.backToLive" });
+    fireEvent.click(back);
+
+    expect(panel.scrollTop).toBe(360);
+    expect(screen.queryByRole("button", { name: "match.backToLive" })).toBeNull();
+
+    Object.defineProperty(panel, "scrollHeight", { value: 720 });
+    rerenderEvents([
+      {
+        minute: 1,
+        event_type: "Foul",
+        side: "Home",
+        zone: "Midfield",
+        player_id: null,
+        secondary_player_id: null,
+      },
+    ]);
+
+    expect(panel.scrollTop).toBe(480);
+  });
+
+  /** Given the latest play is already in view, when commentary renders, then no Back to live action is offered. */
+  it("offers no Back to live while the latest play is in view", () => {
+    renderLive();
+
+    expect(screen.queryByRole("button", { name: "match.backToLive" })).toBeNull();
+  });
+
+  /**
    * Given the user is viewing statistics with commentary already available
    * When they return to commentary without another event arriving
    * Then the commentary panel follows the latest play.

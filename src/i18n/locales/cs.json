@@ -2236,6 +2236,7 @@
   },
   "match": {
     "live": "Živě",
+    "backToLive": "Zpět na živé",
     "paused": "Pozastaveno",
     "events": "Události",
     "stats": "Statistiky",
