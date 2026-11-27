@@ -35,7 +35,9 @@ import {
 } from "../components/dashboard/dashboardProfileNavigation";
 import { createDashboardTabContentModel } from "../components/dashboard/dashboardTabContentModel";
 import {
+  DEFAULT_SQUAD_LIST_FILTER_STATE,
   DEFAULT_SQUAD_LIST_SORT_STATE,
+  type SquadListFilterState,
   type SquadListSortState,
 } from "../components/squad/SquadRosterView.state";
 import {
@@ -150,6 +152,10 @@ export default function Dashboard({
   const [activeSaveId, setActiveSaveId] = useState<string | null>(null);
   const [squadListSortState, setSquadListSortState] = useState<SquadListSortState>(
     DEFAULT_SQUAD_LIST_SORT_STATE,
+  );
+  // Kept here, not in the roster, so visiting a player's profile and coming back does not reset it.
+  const [squadListFilterState, setSquadListFilterState] = useState<SquadListFilterState>(
+    DEFAULT_SQUAD_LIST_FILTER_STATE,
   );
   const squadFitness = useSquadFitness(gameState);
   const [financeVerdict, setFinanceVerdict] = useState<{
@@ -278,8 +284,20 @@ export default function Dashboard({
     setVisitedOnboardingTabs(loadVisitedOnboardingTabs(gameState, undefined, activeSaveId));
   }, [gameState, activeSaveId]);
 
+  // Filters are kept across a refresh whose save id could not be read: only a new save id means a
+  // different career, so only that clears them. The first readable id only records the save, so a
+  // lookup that failed at first and later succeeds does not discard filters chosen meanwhile.
+  const lastSaveIdForFilters = useRef<string | null>(null);
   useEffect(() => {
+    if (activeSaveId === null) return;
+    if (lastSaveIdForFilters.current === null) {
+      lastSaveIdForFilters.current = activeSaveId;
+      return;
+    }
+    if (lastSaveIdForFilters.current === activeSaveId) return;
+    lastSaveIdForFilters.current = activeSaveId;
     setSquadListSortState(DEFAULT_SQUAD_LIST_SORT_STATE);
+    setSquadListFilterState(DEFAULT_SQUAD_LIST_FILTER_STATE);
   }, [activeSaveId]);
 
   useEffect(() => {
@@ -557,6 +575,7 @@ export default function Dashboard({
     seasonComplete,
     visitedOnboardingTabs,
     squadListSortState,
+    squadListFilterState,
     initialMessageId: profileNavigation.initialMessageId,
     handlers: {
       onSelectPlayer: selectPlayer,
@@ -564,6 +583,7 @@ export default function Dashboard({
       onGameUpdate: setGameState,
       onNavigate: handleNavigate,
       onSquadListSortChange: setSquadListSortState,
+      onSquadListFilterChange: setSquadListFilterState,
     },
   });
 

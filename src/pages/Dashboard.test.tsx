@@ -232,12 +232,29 @@ vi.mock("../components/dashboard/DashboardTabContent", () => ({
     viewModel: {
       activeTab: string;
       seasonComplete: boolean;
-      handlers: { onNavigate: (tab: string) => void };
+      squadListFilterState: { search: string; position: string; status: string };
+      handlers: {
+        onNavigate: (tab: string) => void;
+        onSquadListFilterChange: (filters: {
+          search: string;
+          position: string;
+          status: string;
+        }) => void;
+      };
     };
   }) => (
     <div>
       <div>Tab Content {viewModel.activeTab}</div>
       {viewModel.seasonComplete ? <div>season over</div> : null}
+      <span>filters {viewModel.squadListFilterState.status}</span>
+      <button
+        type="button"
+        onClick={() =>
+          viewModel.handlers.onSquadListFilterChange({ search: "", position: "All", status: "xi" })
+        }
+      >
+        set-filter
+      </button>
       <button type="button" onClick={() => viewModel.handlers.onNavigate("Inbox")}>
         content-nav-inbox
       </button>
@@ -500,6 +517,93 @@ describe("Dashboard", () => {
   it("opens on the tab it is given", async () => {
     render(<Dashboard initialTab="Squad" />);
     expect(await screen.findByText("Tab Content Squad")).toBeInTheDocument();
+  });
+
+  /**
+   * Given Squad open and a filter chosen on the roster
+   * When a player's profile opens and Back returns to Squad
+   * Then the filters are still the ones chosen: the page holds them, so the unmounted roster
+   *      cannot take them with it.
+   */
+  it("keeps the squad filters when a profile opens and Back returns", async () => {
+    render(<Dashboard initialTab="Squad" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "set-filter" }));
+    expect(screen.getByText("filters xi")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "search-player" }));
+    expect(screen.getByText("Player Profile Mock")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "header-back" }));
+    expect(screen.getByText("Tab Content Squad")).toBeInTheDocument();
+    expect(screen.getByText("filters xi")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a save id that could not be read at first, and a filter chosen after that
+   * When a later refresh reads the same save id
+   * Then the filter stays: recovering an id is not a change of save.
+   */
+  it("keeps filters chosen before the save id becomes readable", async () => {
+    let saveIdRequests = 0;
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_active_game") return gameState;
+      if (command === "get_finance_snapshot") return { snapshot: backendFinanceSnapshot };
+      if (command === "get_active_save_id") {
+        saveIdRequests += 1;
+        if (saveIdRequests === 1) throw new Error("save id unavailable");
+        return "save-1";
+      }
+      return null;
+    });
+
+    render(<Dashboard initialTab="Squad" />);
+    await act(async () => {});
+
+    fireEvent.click(await screen.findByRole("button", { name: "set-filter" }));
+    expect(screen.getByText("filters xi")).toBeInTheDocument();
+
+    const gameStateChangedHandler = registeredEventHandlers.get("game-state-changed");
+    expect(gameStateChangedHandler).toBeTypeOf("function");
+    await act(async () => {
+      await gameStateChangedHandler?.();
+    });
+
+    expect(screen.getByText("filters xi")).toBeInTheDocument();
+  });
+
+  /**
+   * Given Squad open, a filter chosen, and a save id that was read
+   * When a same-save refresh cannot read the save id
+   * Then the filters stay: an unreadable id is not a different career.
+   */
+  it("keeps the squad filters when a refresh cannot read the save id", async () => {
+    let saveIdRequests = 0;
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_active_game") return gameState;
+      if (command === "get_finance_snapshot") return { snapshot: backendFinanceSnapshot };
+      if (command === "get_active_save_id") {
+        saveIdRequests += 1;
+        if (saveIdRequests === 1) return "save-1";
+        throw new Error("save id unavailable");
+      }
+      return null;
+    });
+
+    render(<Dashboard initialTab="Squad" />);
+
+    // Let the first save-id read settle, so the arrival of the id is not mistaken for a change.
+    await act(async () => {});
+    fireEvent.click(await screen.findByRole("button", { name: "set-filter" }));
+    expect(screen.getByText("filters xi")).toBeInTheDocument();
+
+    const gameStateChangedHandler = registeredEventHandlers.get("game-state-changed");
+    expect(gameStateChangedHandler).toBeTypeOf("function");
+    await act(async () => {
+      await gameStateChangedHandler?.();
+    });
+
+    expect(screen.getByText("filters xi")).toBeInTheDocument();
   });
 
   /**

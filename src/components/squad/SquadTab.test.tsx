@@ -316,6 +316,42 @@ describe("SquadTab", () => {
   });
 
   /**
+   * Given filters the owner keeps outside the roster — as the Dashboard does, so a visit to a
+   *       player's profile and back does not clear them
+   * When the manager changes one
+   * Then the roster lists what the given filters select, and reports the new filters back rather
+   *      than keeping a copy that would be lost with the roster.
+   */
+  it("lists by the filter state it is given and reports every change back", async () => {
+    const onFilterStateChange = vi.fn();
+    const state = makeGameState();
+    mockedInvoke.mockResolvedValueOnce(
+      state.players.filter((player) => player.team_id === "team1"),
+    );
+
+    render(
+      <SquadTab
+        gameState={state}
+        managerId="mgr1"
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+        filterState={{ search: "", position: "All", status: "xi" }}
+        onFilterStateChange={onFilterStateChange}
+      />,
+    );
+
+    expect(await screen.findByRole("row", { name: /GK1/ })).toBeInTheDocument();
+    expect(screen.queryByText("Bench DEF")).toBeNull();
+
+    fireEvent.change(screen.getByLabelText("common.search"), { target: { value: "mid" } });
+    expect(onFilterStateChange).toHaveBeenCalledWith({
+      search: "mid",
+      position: "All",
+      status: "xi",
+    });
+  });
+
+  /**
    * Given a squad numbered 1 to 11, and a bench defender with no shirt number
    * When the roster is sorted by number, up and then down
    * Then the numbered players run 1 to 11 and then 11 to 1, and the bench defender is the last row
@@ -1279,6 +1315,36 @@ describe("SquadTab", () => {
     await act(async () => {}); // the squad has answered for this revision
     fireEvent.click(screen.getByRole("combobox", { name: "common.status" }));
     expect(screen.getByRole("option", { name: "squad.needsCover" })).toBeInTheDocument();
+  });
+
+  /**
+   * Given the roster holds a fit filter (as it does on returning from a profile) before the
+   *       position table has loaded
+   * When the status select renders
+   * Then it still names that filter, disabled, rather than falling back to All Players while the
+   *      list stays filtered.
+   */
+  it("shows a held fit filter while the grades load instead of All Players", () => {
+    positionTableState.arrived = false;
+    try {
+      render(
+        <SquadTab
+          gameState={makeGameState()}
+          managerId="mgr1"
+          onSelectPlayer={vi.fn()}
+          onGameUpdate={vi.fn()}
+          filterState={{ search: "", position: "All", status: "naturalFit" }}
+          onFilterStateChange={vi.fn()}
+        />,
+      );
+
+      const status = screen.getByRole("combobox", { name: "common.status" });
+      expect(status).toHaveTextContent("squad.naturalFit");
+      fireEvent.click(status);
+      expect(screen.getByRole("option", { name: "squad.naturalFit" })).toBeDisabled();
+    } finally {
+      positionTableState.arrived = true;
+    }
   });
 
   /**

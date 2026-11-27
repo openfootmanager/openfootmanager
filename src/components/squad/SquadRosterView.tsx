@@ -43,9 +43,12 @@ import { findTacticsPresetBySetup } from "../tactics/TacticsTab.helpers";
 import { SquadNameAside, squadRosterColumns } from "./SquadRosterView.columns";
 import { squadRowMenuItems } from "./SquadRosterView.menu";
 import {
+  DEFAULT_SQUAD_LIST_FILTER_STATE,
   DEFAULT_SQUAD_LIST_SORT_STATE,
+  type SquadListFilterState,
   type SquadListSortKey,
   type SquadListSortState,
+  type SquadListStatusFilter,
 } from "./SquadRosterView.state";
 import { useListView } from "../../hooks/useListView";
 import { contextMenuPoint } from "../../lib/contextMenuPoint";
@@ -63,16 +66,23 @@ interface SquadRosterViewProps {
   onMutationComplete?: (g: GameStateData) => void;
   sortState?: SquadListSortState;
   onSortStateChange?: (sortState: SquadListSortState) => void;
+  filterState?: SquadListFilterState;
+  onFilterStateChange?: (filterState: SquadListFilterState) => void;
 }
 
-type FilterScope =
-  | "all"
-  | "xi"
-  | "bench"
-  | "naturalFit"
-  | "needsCover"
-  | "outOfPosition"
-  | "injured";
+/** The label key of a status filter that needs the backend's lineup grades to list players. */
+function gradedStatusLabelKey(status: SquadListStatusFilter): string | null {
+  switch (status) {
+    case "naturalFit":
+      return "squad.naturalFit";
+    case "needsCover":
+      return "squad.needsCover";
+    case "outOfPosition":
+      return "squad.outOfPosition";
+    default:
+      return null;
+  }
+}
 
 export default function SquadRosterView({
   players,
@@ -83,17 +93,27 @@ export default function SquadRosterView({
   onMutationComplete,
   sortState,
   onSortStateChange,
+  filterState,
+  onFilterStateChange,
 }: SquadRosterViewProps) {
   const tierOf = useRatingTiers();
   const { t, i18n } = useTranslation();
   const [view, setView] = useListView();
-  const [playerSearch, setPlayerSearch] = useState("");
+  const [localFilterState, setLocalFilterState] = useState<SquadListFilterState>(
+    DEFAULT_SQUAD_LIST_FILTER_STATE,
+  );
+  // Controlled by the Dashboard when it passes filters, so a profile visit that unmounts this
+  // view does not reset them; uncontrolled for callers that only render the view.
+  const filters = filterState ?? localFilterState;
+  const updateFilters = (next: SquadListFilterState) => {
+    if (onFilterStateChange) onFilterStateChange(next);
+    else setLocalFilterState(next);
+  };
+  const { search: playerSearch, position: positionFilter, status: statusFilter } = filters;
   // Ties each visible filter label to its control, so the control is announced by that label.
   const searchInputId = useId();
   const positionFilterId = useId();
   const statusFilterId = useId();
-  const [positionFilter, setPositionFilter] = useState("All");
-  const [statusFilter, setStatusFilter] = useState<FilterScope>("all");
   const [localSortState, setLocalSortState] = useState<SquadListSortState>(
     DEFAULT_SQUAD_LIST_SORT_STATE,
   );
@@ -107,6 +127,9 @@ export default function SquadRosterView({
   // One flag for grading and for changing a lineup: the table, the familiarity and the squad's
   // answer for this revision.
   const canGradeLineup = lineupReady(positionTable, familiarity) && squadAnswered;
+  // A fit filter chosen before a reload stays shown while the grades load: the list is still
+  // filtered by it, so the select must not fall back to "All Players".
+  const heldGradedStatus = canGradeLineup ? null : gradedStatusLabelKey(statusFilter);
   const roster = players
     .filter((player) => isFirstTeamSquadPlayer(player))
     .sort(
@@ -419,7 +442,7 @@ export default function SquadRosterView({
               id={searchInputId}
               type="text"
               value={playerSearch}
-              onChange={(event) => setPlayerSearch(event.target.value)}
+              onChange={(event) => updateFilters({ ...filters, search: event.target.value })}
               placeholder={t("squad.filterPlayers")}
               className="w-full rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-800 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
             />
@@ -434,7 +457,7 @@ export default function SquadRosterView({
             <Select
               id={positionFilterId}
               value={positionFilter}
-              onChange={(event) => setPositionFilter(event.target.value)}
+              onChange={(event) => updateFilters({ ...filters, position: event.target.value })}
               fullWidth
             >
               <option value="All">{t("common.all")}</option>
@@ -455,15 +478,25 @@ export default function SquadRosterView({
             <Select
               id={statusFilterId}
               value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value as FilterScope)}
+              onChange={(event) =>
+                updateFilters({ ...filters, status: event.target.value as SquadListStatusFilter })
+              }
               fullWidth
             >
               <option value="all">{t("common.allPlayers")}</option>
               <option value="xi">{t("preMatch.startingXI")}</option>
               <option value="bench">{t("preMatch.substitutes")}</option>
               {/* The fit filters read the backend's lines and grade; until they arrive they would
-                  show an empty list, or drop players they should keep, so they are not offered. */}
-              {canGradeLineup ? <option value="naturalFit">{t("squad.naturalFit")}</option> : null}
+                  show an empty list, or drop players they should keep, so they are not offered.
+                  A fit filter held from before a reload stays visible, disabled, so the list is
+                  not filtered by a value the select no longer names. */}
+              {canGradeLineup ? (
+                <option value="naturalFit">{t("squad.naturalFit")}</option>
+              ) : heldGradedStatus ? (
+                <option value={statusFilter} disabled>
+                  {t(heldGradedStatus)}
+                </option>
+              ) : null}
               {canGradeLineup ? <option value="needsCover">{t("squad.needsCover")}</option> : null}
               {canGradeLineup ? (
                 <option value="outOfPosition">{t("squad.outOfPosition")}</option>
@@ -473,11 +506,7 @@ export default function SquadRosterView({
           </div>
           <button
             type="button"
-            onClick={() => {
-              setPlayerSearch("");
-              setPositionFilter("All");
-              setStatusFilter("all");
-            }}
+            onClick={() => updateFilters(DEFAULT_SQUAD_LIST_FILTER_STATE)}
             disabled={!hasActiveFilters}
             className={`px-3 py-2 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${
               hasActiveFilters

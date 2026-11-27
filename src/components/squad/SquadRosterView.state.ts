@@ -24,3 +24,26 @@ export const DEFAULT_SQUAD_LIST_SORT_STATE: SquadListSortState = {
   sortKey: "pos",
   sortDir: "asc",
 };
+
+/** The squad roster's status filter. */
+export type SquadListStatusFilter =
+  | "all"
+  | "xi"
+  | "bench"
+  | "naturalFit"
+  | "needsCover"
+  | "outOfPosition"
+  | "injured";
+
+/** The roster filters kept while the manager visits a profile and comes back. */
+export interface SquadListFilterState {
+  search: string;
+  position: string;
+  status: SquadListStatusFilter;
+}
+
+export const DEFAULT_SQUAD_LIST_FILTER_STATE: SquadListFilterState = {
+  search: "",
+  position: "All",
+  status: "all",
+};
