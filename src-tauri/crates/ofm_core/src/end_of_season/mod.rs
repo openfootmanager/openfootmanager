@@ -1181,21 +1181,49 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     notify_user_division_change(game, user_division_before, &last_fixture_date);
 
     // The preview is of the user's division as the new season has it, after promotion and
-    // relegation; the world's other clubs are not in the race it previews (#1179).
+    // relegation; the world's other clubs are not in the race it previews (#1179). The favourite
+    // is the strongest club by the one team-strength rule, and the division's name travels with
+    // the key the screen localizes it from (#1226).
     let preview_date = game.clock.current_date.to_rfc3339();
     if shows_a_league {
-        let division_club_names: Vec<String> = user_division(game)
+        let division = user_division(game);
+        let preview_clubs: Vec<crate::news::PreviewClub> = division
             .map(|division| {
                 division
                     .participant_ids
                     .iter()
                     .filter_map(|club_id| game.teams.iter().find(|team| &team.id == club_id))
-                    .map(|team| team.name.clone())
+                    .map(|team| crate::news::PreviewClub {
+                        name: team.name.clone(),
+                        strength: crate::catchup::club_strength(game, &team.id, None),
+                    })
                     .collect()
             })
             .unwrap_or_default();
+        let preview_competition = division.map(|division| {
+            let identity = division
+                .calendar
+                .as_ref()
+                .and_then(|calendar| calendar.season.division.as_ref());
+            crate::news::PreviewCompetition {
+                name: division.name.clone(),
+                name_key: division.name_key.clone(),
+                country_id: division.country_id.clone(),
+                season: division.season,
+                tier: identity.map(|identity| identity.tier),
+                phase: identity.map(|identity| {
+                    match identity.phase {
+                        domain::competition_calendar::SeasonPhase::Annual => "annual",
+                        domain::competition_calendar::SeasonPhase::Opening => "opening",
+                        domain::competition_calendar::SeasonPhase::Closing => "closing",
+                    }
+                    .to_string()
+                }),
+            }
+        });
         game.news.push(crate::news::season_preview_article(
-            &division_club_names,
+            &preview_clubs,
+            preview_competition.as_ref(),
             &preview_date,
         ));
     }

@@ -277,20 +277,45 @@ pub fn standings_update_article(
     )
 }
 
-fn preview_contenders<'a>(team_names: &'a [String], rng: &mut impl Rng) -> (&'a str, &'a str) {
-    if team_names.is_empty() {
+/// A club in the season preview: its name, and how strong it is by the one team-strength rule.
+pub struct PreviewClub {
+    pub name: String,
+    pub strength: f64,
+}
+
+/// The competition whose season the preview covers, as the screens name it.
+pub struct PreviewCompetition {
+    pub name: String,
+    pub name_key: Option<String>,
+    pub country_id: Option<String>,
+    pub season: u32,
+    pub tier: Option<u32>,
+    pub phase: Option<String>,
+}
+
+fn preview_contenders<'a>(clubs: &'a [PreviewClub], rng: &mut impl Rng) -> (&'a str, &'a str) {
+    if clubs.is_empty() {
         return ("", "");
     }
-    let favourite = &team_names[rng.random_range(0..team_names.len())];
+    // The strongest club by the one team-strength rule; an equal strength goes to the name that
+    // sorts first, so the pick does not depend on the order the clubs arrived in.
+    let favourite = clubs
+        .iter()
+        .max_by(|left, right| {
+            left.strength
+                .total_cmp(&right.strength)
+                .then_with(|| right.name.cmp(&left.name))
+        })
+        .expect("clubs is not empty");
 
     // Draw the dark horse from the clubs actually named differently, falling back
     // to the favourite when there are none. The obvious formulation — keep picking
     // at random until the name differs — never terminates if every club shares a
-    // name, and a package is free to do that; guarding on `team_names.len()`, as
-    // this used to, does not catch it.
-    let others: Vec<&String> = team_names
+    // name, and a package is free to do that; guarding on `clubs.len()`, as this
+    // used to, does not catch it.
+    let others: Vec<&PreviewClub> = clubs
         .iter()
-        .filter(|name| *name != favourite)
+        .filter(|club| club.name != favourite.name)
         .collect();
     let dark_horse = if others.is_empty() {
         favourite
@@ -298,16 +323,64 @@ fn preview_contenders<'a>(team_names: &'a [String], rng: &mut impl Rng) -> (&'a 
         others[rng.random_range(0..others.len())]
     };
 
-    (favourite.as_str(), dark_horse.as_str())
+    (favourite.name.as_str(), dark_horse.name.as_str())
 }
 
-/// Generate a season preview article at the start of the season.
-pub fn season_preview_article(team_names: &[String], date: &str) -> NewsArticle {
+/// Generate a season preview article at the start of the season. The division it names and the
+/// club it makes favourite come from the competition and the clubs' strength, not chance.
+pub fn season_preview_article(
+    clubs: &[PreviewClub],
+    competition: Option<&PreviewCompetition>,
+    date: &str,
+) -> NewsArticle {
+    let team_names: Vec<&str> = clubs.iter().map(|club| club.name.as_str()).collect();
     let mut rng =
         crate::seed::rng_from_key(&format!("news/preview/{date}/{}", team_names.join(",")));
 
-    let (favourite, dark_horse) = preview_contenders(team_names, &mut rng);
+    let (favourite, dark_horse) = preview_contenders(clubs, &mut rng);
     let headline_idx = rng.random_range(0..3);
+
+    let mut article_params = params(&[
+        ("teamCount", &clubs.len().to_string()),
+        ("favourite", favourite),
+        ("darkHorse", dark_horse),
+        ("teamList", &team_names.join(", ")),
+    ]);
+    if let Some(competition) = competition {
+        article_params.insert("competition".to_string(), competition.name.clone());
+        if let Some(key) = &competition.name_key {
+            article_params.insert("competitionKey".to_string(), key.clone());
+        }
+        if let Some(country) = &competition.country_id {
+            article_params.insert("competitionCountry".to_string(), country.clone());
+        }
+        article_params.insert(
+            "competitionSeason".to_string(),
+            competition.season.to_string(),
+        );
+        if let Some(tier) = competition.tier {
+            article_params.insert("competitionTier".to_string(), tier.to_string());
+        }
+        if let Some(phase) = &competition.phase {
+            article_params.insert("competitionPhase".to_string(), phase.clone());
+        }
+    }
+
+    // A preview written before the division travelled with the article keeps the old text on the
+    // old keys, so an old save does not show a placeholder it has no value for.
+    let (headline_key, body_key) = if competition.is_some() {
+        let headline_key = if headline_idx == 1 {
+            "be.news.seasonPreview.headline1WithDivision".to_string()
+        } else {
+            format!("be.news.seasonPreview.headline{}", headline_idx)
+        };
+        (headline_key, "be.news.seasonPreview.bodyWithDivision")
+    } else {
+        (
+            format!("be.news.seasonPreview.headline{}", headline_idx),
+            "be.news.seasonPreview.body",
+        )
+    };
 
     NewsArticle::new(
         "season_preview".to_string(),
@@ -318,15 +391,10 @@ pub fn season_preview_article(team_names: &[String], date: &str) -> NewsArticle 
         NewsCategory::SeasonPreview,
     )
     .with_i18n(
-        &format!("be.news.seasonPreview.headline{}", headline_idx),
-        "be.news.seasonPreview.body",
+        &headline_key,
+        body_key,
         "be.source.footballHerald",
-        params(&[
-            ("teamCount", &team_names.len().to_string()),
-            ("favourite", favourite),
-            ("darkHorse", dark_horse),
-            ("teamList", &team_names.join(", ")),
-        ]),
+        article_params,
     )
 }
 
@@ -859,8 +927,8 @@ pub fn injury_news_article(
 #[cfg(test)]
 mod tests {
     use super::{
-        league_roundup_article, season_awards_article, season_preview_article,
-        standings_update_article,
+        PreviewClub, PreviewCompetition, league_roundup_article, season_awards_article,
+        season_preview_article, standings_update_article,
     };
     use crate::season_awards::{AwardEntry, SeasonAwards};
     use domain::news::NewsCategory;
@@ -1029,13 +1097,22 @@ mod tests {
 
     #[test]
     fn season_preview_article_includes_team_list_and_distinct_contenders() {
-        let teams = vec![
-            "Alpha FC".to_string(),
-            "Beta FC".to_string(),
-            "Gamma FC".to_string(),
+        let clubs = vec![
+            PreviewClub {
+                name: "Alpha FC".to_string(),
+                strength: 60.0,
+            },
+            PreviewClub {
+                name: "Beta FC".to_string(),
+                strength: 80.0,
+            },
+            PreviewClub {
+                name: "Gamma FC".to_string(),
+                strength: 70.0,
+            },
         ];
 
-        let article = season_preview_article(&teams, "2025-08-01");
+        let article = season_preview_article(&clubs, None, "2025-08-01");
 
         assert_eq!(article.id, "season_preview");
         assert_eq!(article.category, NewsCategory::SeasonPreview);
@@ -1058,6 +1135,10 @@ mod tests {
             article.body_key.as_deref(),
             Some("be.news.seasonPreview.body")
         );
+        assert!(
+            !article.i18n_params.contains_key("competition"),
+            "a preview with no division names none"
+        );
         assert_eq!(article.i18n_params.get("teamCount"), Some(&"3".to_string()));
         assert_eq!(
             article.i18n_params.get("teamList"),
@@ -1066,16 +1147,70 @@ mod tests {
 
         let favourite = article.i18n_params.get("favourite").unwrap();
         let dark_horse = article.i18n_params.get("darkHorse").unwrap();
-        assert!(teams.contains(favourite));
-        assert!(teams.contains(dark_horse));
+        assert_eq!(favourite, "Beta FC", "the strongest club is the favourite");
+        assert!(["Alpha FC", "Gamma FC"].contains(&dark_horse.as_str()));
         assert_ne!(favourite, dark_horse);
+    }
+
+    /// Given a second-tier division with a name key and a phase
+    /// When its season is previewed
+    /// Then the article carries the division and the metadata the screen needs to name it in the
+    ///      player's language
+    #[test]
+    fn season_preview_names_the_previewed_competition() {
+        let clubs = vec![PreviewClub {
+            name: "Alpha FC".to_string(),
+            strength: 50.0,
+        }];
+        let competition = PreviewCompetition {
+            name: "Germany Division 2".to_string(),
+            name_key: Some("tournaments.competitions.tierDivision".to_string()),
+            country_id: Some("DE".to_string()),
+            season: 2026,
+            tier: Some(2),
+            phase: Some("opening".to_string()),
+        };
+
+        let article = season_preview_article(&clubs, Some(&competition), "2026-08-01");
+
+        assert_eq!(
+            article.i18n_params.get("competition"),
+            Some(&"Germany Division 2".to_string())
+        );
+        assert_eq!(
+            article.i18n_params.get("competitionKey"),
+            Some(&"tournaments.competitions.tierDivision".to_string())
+        );
+        assert_eq!(
+            article.i18n_params.get("competitionCountry"),
+            Some(&"DE".to_string())
+        );
+        assert_eq!(
+            article.i18n_params.get("competitionTier"),
+            Some(&"2".to_string())
+        );
+        assert_eq!(
+            article.i18n_params.get("competitionPhase"),
+            Some(&"opening".to_string())
+        );
+        assert_eq!(
+            article.i18n_params.get("competitionSeason"),
+            Some(&"2026".to_string())
+        );
+        assert_eq!(
+            article.body_key.as_deref(),
+            Some("be.news.seasonPreview.bodyWithDivision")
+        );
     }
 
     #[test]
     fn season_preview_article_handles_single_team_without_looping() {
-        let teams = vec!["Solo FC".to_string()];
+        let clubs = vec![PreviewClub {
+            name: "Solo FC".to_string(),
+            strength: 50.0,
+        }];
 
-        let article = season_preview_article(&teams, "2025-08-01");
+        let article = season_preview_article(&clubs, None, "2025-08-01");
 
         assert_eq!(article.body, "");
         assert_eq!(article.i18n_params.get("teamCount"), Some(&"1".to_string()));
@@ -1094,9 +1229,18 @@ mod tests {
     /// then no pick ever differs from the favourite and the search never returns.
     #[test]
     fn season_preview_article_handles_duplicate_team_names_without_looping() {
-        let teams = vec!["United".to_string(), "United".to_string()];
+        let clubs = vec![
+            PreviewClub {
+                name: "United".to_string(),
+                strength: 50.0,
+            },
+            PreviewClub {
+                name: "United".to_string(),
+                strength: 90.0,
+            },
+        ];
 
-        let article = season_preview_article(&teams, "2025-08-01");
+        let article = season_preview_article(&clubs, None, "2025-08-01");
 
         assert_eq!(
             article.i18n_params.get("favourite"),
@@ -1111,7 +1255,7 @@ mod tests {
     /// A world with no clubs at all must not index into an empty slice.
     #[test]
     fn season_preview_article_handles_no_teams() {
-        let article = season_preview_article(&[], "2025-08-01");
+        let article = season_preview_article(&[], None, "2025-08-01");
 
         assert_eq!(article.i18n_params.get("favourite"), Some(&String::new()));
         assert_eq!(article.i18n_params.get("darkHorse"), Some(&String::new()));

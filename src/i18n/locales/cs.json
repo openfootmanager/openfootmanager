@@ -3977,7 +3977,9 @@
         "headline0": "Předsezónní preview: {{teamCount}} týmů svede bitvu o slávu",
         "headline1": "Sezóna Premier Division je připravena k zahájení",
         "headline2": "Získá {{favourite}} titul? Předsezónní preview",
-        "body": "Premier Division se chystá odstartovat s {{teamCount}} týmy, které budou usilovat o titul.\n\nPředsezónní prognózy označují za největšího favorita tým {{favourite}}, ale černým koněm, kterého se v této kampani vyplatí sledovat, by mohl být {{darkHorse}}.\n\nVzhledem k tomu, že v některých klubech přebírají otěže noví manažeři, slibuje tato sezóna jednu z nejvyrovnanějších podívaných v novodobé historii. Jakmile se boj o titul přiostří, bude záležet na každém bodu.\n\nTýmy: {{teamList}}"
+        "headline1WithDivision": "Sezóna {{competition}} je připravena k zahájení",
+        "body": "Premier Division se chystá odstartovat s {{teamCount}} týmy, které budou usilovat o titul.\n\nPředsezónní prognózy označují za největšího favorita tým {{favourite}}, ale černým koněm, kterého se v této kampani vyplatí sledovat, by mohl být {{darkHorse}}.\n\nVzhledem k tomu, že v některých klubech přebírají otěže noví manažeři, slibuje tato sezóna jednu z nejvyrovnanějších podívaných v novodobé historii. Jakmile se boj o titul přiostří, bude záležet na každém bodu.\n\nTýmy: {{teamList}}",
+        "bodyWithDivision": "{{competition}} se chystá odstartovat s {{teamCount}} týmy, které budou usilovat o titul.\n\nPředsezónní prognózy označují za největšího favorita tým {{favourite}}, ale černým koněm, kterého se v této kampani vyplatí sledovat, by mohl být {{darkHorse}}.\n\nVzhledem k tomu, že v některých klubech přebírají otěže noví manažeři, slibuje tato sezóna jednu z nejvyrovnanějších podívaných v novodobé historii. Jakmile se boj o titul přiostří, bude záležet na každém bodu.\n\nTýmy: {{teamList}}"
       },
       "managerialChange": {
         "headline": "Klub {{team}} propustil manažera, kterým byl {{manager}}",

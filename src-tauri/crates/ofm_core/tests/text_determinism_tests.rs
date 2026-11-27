@@ -54,9 +54,14 @@ fn a_standings_update_is_worded_the_same_way_each_time() {
 
 #[test]
 fn a_season_preview_names_the_same_contenders_each_time() {
-    let teams: Vec<String> = (0..8).map(|n| format!("Club {n}")).collect();
+    let clubs: Vec<news::PreviewClub> = (0..8)
+        .map(|n| news::PreviewClub {
+            name: format!("Club {n}"),
+            strength: 40.0 + f64::from(n),
+        })
+        .collect();
     assert_replays_but_varies("season preview", |date| {
-        news::season_preview_article(&teams, date)
+        news::season_preview_article(&clubs, None, date)
     });
 }
 

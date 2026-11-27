@@ -3977,7 +3977,9 @@
         "headline0": "Pratinjau Musim: {{teamCount}} Tim Berebut Kejayaan",
         "headline1": "Musim Divisi Premier Siap Dimulai",
         "headline2": "Bisakah {{favourite}} Meraih Gelar? Pratinjau Musim",
-        "body": "Divisi Premier siap bergulir dengan {{teamCount}} tim yang memperebutkan gelar.\n\nPrediksi pramusim menempatkan {{favourite}} sebagai unggulan awal, tetapi {{darkHorse}} bisa menjadi kuda hitam yang patut diperhatikan musim ini.\n\nDengan manajer baru yang mengambil alih di sejumlah klub, musim ini dijanjikan menjadi salah satu yang paling kompetitif dalam ingatan terkini. Setiap poin akan sangat berarti seiring memanasnya persaingan gelar.\n\nTim: {{teamList}}"
+        "headline1WithDivision": "Musim {{competition}} Siap Dimulai",
+        "body": "Divisi Premier siap bergulir dengan {{teamCount}} tim yang memperebutkan gelar.\n\nPrediksi pramusim menempatkan {{favourite}} sebagai unggulan awal, tetapi {{darkHorse}} bisa menjadi kuda hitam yang patut diperhatikan musim ini.\n\nDengan manajer baru yang mengambil alih di sejumlah klub, musim ini dijanjikan menjadi salah satu yang paling kompetitif dalam ingatan terkini. Setiap poin akan sangat berarti seiring memanasnya persaingan gelar.\n\nTim: {{teamList}}",
+        "bodyWithDivision": "{{competition}} siap bergulir dengan {{teamCount}} tim yang memperebutkan gelar.\n\nPrediksi pramusim menempatkan {{favourite}} sebagai unggulan awal, tetapi {{darkHorse}} bisa menjadi kuda hitam yang patut diperhatikan musim ini.\n\nDengan manajer baru yang mengambil alih di sejumlah klub, musim ini dijanjikan menjadi salah satu yang paling kompetitif dalam ingatan terkini. Setiap poin akan sangat berarti seiring memanasnya persaingan gelar.\n\nTim: {{teamList}}"
       },
       "managerialChange": {
         "headline": "{{team}} Memecat {{manager}}",

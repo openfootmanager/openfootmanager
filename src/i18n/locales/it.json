@@ -3977,7 +3977,9 @@
         "headline0": "Anteprima della stagione: {{teamCount}} squadre in lotta per il titolo",
         "headline1": "La stagione della Prima Divisione sta per iniziare",
         "headline2": "Può {{favourite}} vincere il titolo? Anteprima della stagione",
-        "body": "La Prima Divisione è pronta a iniziare con {{teamCount}} squadre in lotta per il titolo.\n\nLe previsioni di pre-stagione vedono {{favourite}} come i grandi favoriti, ma {{darkHorse}} potrebbe essere la sorpresa di questa stagione.\n\nCon nuovi allenatori in alcuni club, questa stagione promette di essere una delle più competitive degli ultimi anni. Ogni punto conterà nella corsa al titolo.\n\nSquadre: {{teamList}}"
+        "headline1WithDivision": "{{competition}}: la stagione sta per iniziare",
+        "body": "La Prima Divisione è pronta a iniziare con {{teamCount}} squadre in lotta per il titolo.\n\nLe previsioni di pre-stagione vedono {{favourite}} come i grandi favoriti, ma {{darkHorse}} potrebbe essere la sorpresa di questa stagione.\n\nCon nuovi allenatori in alcuni club, questa stagione promette di essere una delle più competitive degli ultimi anni. Ogni punto conterà nella corsa al titolo.\n\nSquadre: {{teamList}}",
+        "bodyWithDivision": "{{competition}} è pronta a iniziare con {{teamCount}} squadre in lotta per il titolo.\n\nLe previsioni di pre-stagione vedono {{favourite}} come i grandi favoriti, ma {{darkHorse}} potrebbe essere la sorpresa di questa stagione.\n\nCon nuovi allenatori in alcuni club, questa stagione promette di essere una delle più competitive degli ultimi anni. Ogni punto conterà nella corsa al titolo.\n\nSquadre: {{teamList}}"
       },
       "managerialChange": {
         "headline": "{{team}} esonera {{manager}}",

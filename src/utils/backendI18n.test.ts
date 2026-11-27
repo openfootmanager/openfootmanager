@@ -768,6 +768,76 @@ describe("resolveNewsArticle", () => {
     },
   );
 
+  /**
+   * Given a season preview for a second-tier division, carrying the division's name key, country,
+   *      tier and phase
+   * When it is resolved in German
+   * Then the headline and body name that division in German, not the Premier Division.
+   */
+  it("names the previewed division in the player's language", async () => {
+    const previousLanguage = i18n.language;
+    await i18n.changeLanguage("de");
+
+    try {
+      const article = makeNewsArticle({
+        headline_key: "be.news.seasonPreview.headline1WithDivision",
+        body_key: "be.news.seasonPreview.bodyWithDivision",
+        i18n_params: {
+          teamCount: "18",
+          favourite: "Alpha FC",
+          darkHorse: "Beta FC",
+          teamList: "Alpha FC, Beta FC",
+          competition: "Germany Division 2",
+          competitionKey: "tournaments.competitions.tierDivision",
+          competitionCountry: "DE",
+          competitionSeason: "2032",
+          competitionTier: "2",
+          competitionPhase: "opening",
+        },
+      });
+
+      const result = resolveNewsArticle(article);
+
+      expect(result.headline).toContain("Deutschland 2. Liga");
+      expect(result.headline).toContain("Eröffnungsturnier");
+      expect(result.body).toContain("Deutschland 2. Liga");
+      expect(result.body).not.toContain("Premier");
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
+  });
+
+  /**
+   * Given a season preview written before the division travelled with the article
+   * When it is resolved
+   * Then it still reads as it did: no placeholder is left for a division it never carried.
+   */
+  it("keeps a legacy preview readable without a division param", async () => {
+    const previousLanguage = i18n.language;
+    await i18n.changeLanguage("en");
+
+    try {
+      const article = makeNewsArticle({
+        headline_key: "be.news.seasonPreview.headline1",
+        body_key: "be.news.seasonPreview.body",
+        i18n_params: {
+          teamCount: "18",
+          favourite: "Alpha FC",
+          darkHorse: "Beta FC",
+          teamList: "Alpha FC, Beta FC",
+        },
+      });
+
+      const result = resolveNewsArticle(article);
+
+      expect(result.headline).not.toContain("{{");
+      expect(result.body).not.toContain("{{");
+      expect(result.body).toContain("Premier Division");
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
+  });
+
   it("resolves all translatable fields with params", () => {
     const article = makeNewsArticle({
       headline: "raw",

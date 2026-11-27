@@ -510,6 +510,38 @@ function normalizeReportCompetitionName(
   };
 }
 
+/**
+ * A season preview names the division the user's club plays in. The backend sends the division's
+ * stored name with the key, country, season, tier and phase the screens name a competition from,
+ * so a second-tier preview reads as that tier.
+ */
+function normalizeSeasonPreviewParams(
+  article: NewsArticle,
+  params?: Record<string, string>,
+): Record<string, string> | undefined {
+  if (!article.body_key?.startsWith("be.news.seasonPreview.") || !params?.competitionKey) {
+    return params;
+  }
+
+  const season = Number(params.competitionSeason);
+  const tier = Number(params.competitionTier);
+  const phase = parseDivisionPhase(params.competitionPhase);
+  return {
+    ...params,
+    competition: competitionDisplayName(
+      {
+        name: params.competition,
+        name_key: params.competitionKey,
+        country_id: params.competitionCountry ?? null,
+        season: Number.isFinite(season) ? season : undefined,
+        division_tier: Number.isInteger(tier) && tier > 0 ? tier : undefined,
+        calendar: phase ? { season: { division: { phase } } } : undefined,
+      },
+      (key, options) => i18n.t(key, options),
+    ),
+  };
+}
+
 function parseDivisionPhase(value: string | undefined): CompetitionSeasonPhase | undefined {
   return value === "annual" || value === "opening" || value === "closing" ? value : undefined;
 }
@@ -782,6 +814,7 @@ const ARTICLE_PARAM_NORMALIZERS: ArticleParamNormalizer[] = [
   normalizeRoundupParams,
   normalizeStandingsParams,
   normalizeMatchReportParams,
+  normalizeSeasonPreviewParams,
   normalizeReportCompetitionName,
   normalizePressConferenceParams,
   normalizeTransferRoundupParams,
