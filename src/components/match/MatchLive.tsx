@@ -246,11 +246,14 @@ export default function MatchLive({
     const panel = matchPanelRef.current;
     if (!panel || typeof ResizeObserver === "undefined") return;
     const recheckBottom = () => {
-      const bottomTolerancePx = 1;
-      const following =
-        panel.scrollHeight - panel.clientHeight - panel.scrollTop <= bottomTolerancePx;
-      isFollowingCommentaryRef.current = following;
-      setIsFollowingCommentary(following);
+      // Content growth can run this before the auto-follow effect, and the old scroll position
+      // would then look like the reader left the bottom. Only notice a panel that now shows the
+      // whole history; leaving the bottom stays the scroll handler's job.
+      const fits = panel.scrollHeight - panel.clientHeight <= 1;
+      if (fits && !isFollowingCommentaryRef.current) {
+        isFollowingCommentaryRef.current = true;
+        setIsFollowingCommentary(true);
+      }
     };
     const observer = new ResizeObserver(recheckBottom);
     observer.observe(panel);
